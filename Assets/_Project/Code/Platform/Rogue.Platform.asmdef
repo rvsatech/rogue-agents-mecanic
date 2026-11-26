@@ -1,0 +1,6 @@
+{
+  "name": "Rogue.Platform",
+  "rootNamespace": "Rogue.Platform",
+  "references": ["Rogue.Core"],
+  "autoReferenced": true
+}

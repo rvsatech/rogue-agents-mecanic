@@ -1,0 +1,7 @@
+{
+  "name": "Rogue.EditorTools",
+  "rootNamespace": "Rogue.EditorTools",
+  "references": ["Rogue.Core", "Rogue.Gameplay", "Rogue.DebugTools"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": false
+}

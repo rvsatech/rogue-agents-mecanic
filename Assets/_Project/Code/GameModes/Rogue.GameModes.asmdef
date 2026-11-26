@@ -1,0 +1,6 @@
+{
+  "name": "Rogue.GameModes",
+  "rootNamespace": "Rogue.GameModes",
+  "references": ["Rogue.Core", "Rogue.Gameplay"],
+  "autoReferenced": true
+}

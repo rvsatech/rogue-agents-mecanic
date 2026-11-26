@@ -1,0 +1,6 @@
+{
+  "name": "Rogue.Gameplay",
+  "rootNamespace": "Rogue.Gameplay",
+  "references": ["Rogue.Core", "Unity.InputSystem"],
+  "autoReferenced": true
+}
