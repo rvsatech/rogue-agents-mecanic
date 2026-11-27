@@ -4,9 +4,10 @@ namespace Rogue.Core
 {
     /// <summary>
     /// "Pacote de comandos" do jogador para UM tick da simulação.
-    /// O motor do personagem só enxerga isto, nunca o teclado/mouse diretamente.
+    /// O motor e as armas só enxergam isto, nunca o teclado/mouse diretamente.
     /// Quando o jogo for online, é este pacote que viaja pela rede até o servidor,
     /// e o mesmo código de movimento roda lá.
+    /// "Pressed" = apertou desde o último tick. "Held" = está segurando.
     /// </summary>
     public struct PlayerInputFrame
     {
@@ -19,22 +20,46 @@ namespace Rogue.Core
         /// <summary>Para onde a câmera olha na vertical, em graus (negativo = para cima).</summary>
         public float Pitch;
 
-        /// <summary>Pulo foi apertado desde o último tick.</summary>
         public bool JumpPressed;
         public bool JumpHeld;
 
+        /// <summary>Shift segurado: agachar.</summary>
         public bool CrouchHeld;
 
-        /// <summary>Slide foi apertado desde o último tick.</summary>
+        /// <summary>Shift segurado (mesma tecla do agachar): com Espaço perto de uma parede, corre na parede.</summary>
+        public bool WallRunHeld;
+
+        /// <summary>Ctrl esquerdo: deitar / levantar.</summary>
+        public bool ProneTogglePressed;
+
+        /// <summary>C: slide.</summary>
         public bool SlidePressed;
 
-        /// <summary>Rolamento foi apertado desde o último tick.</summary>
+        /// <summary>Alt (toque): cambalhota.</summary>
         public bool RollPressed;
 
+        /// <summary>Botão esquerdo segurado (armas automáticas).</summary>
         public bool FireHeld;
+
+        /// <summary>Botão esquerdo clicado (pistola, faca e gelo: um uso por clique).</summary>
+        public bool FirePressed;
+
+        /// <summary>Botão direito segurado: mirar.</summary>
         public bool AimHeld;
 
-        /// <summary>Habilidade (barreira de gelo) foi apertada desde o último tick.</summary>
-        public bool AbilityPressed;
+        /// <summary>1: arma principal.</summary>
+        public bool Weapon1Pressed;
+
+        /// <summary>2: pistola.</summary>
+        public bool Weapon2Pressed;
+
+        /// <summary>3: faca.</summary>
+        public bool Weapon3Pressed;
+
+        /// <summary>4: gelo (barreira).</summary>
+        public bool Weapon4Pressed;
+
+        /// <summary>Q: volta para a arma anterior.</summary>
+        public bool QuickSwitchPressed;
     }
 }

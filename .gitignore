@@ -139,3 +139,6 @@ crashlytics-build.properties
 
 # Claude Code (config local, pode ter dados pessoais)
 .claude/settings.local.json
+
+# Arquivos que saíram do projeto (pode apagar a pasta)
+_lixo/

@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbc12d5c4c5341f4aa6848821f85b9fb, type: 3}
+  m_Name: MovementConfig
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.MovementConfig
+  tickRate: 60
+  environmentMask:
+    serializedVersion: 2
+    m_Bits: 4294966783
+  nonClimbableMask:
+    serializedVersion: 2
+    m_Bits: 1280
+  runSpeed: 6.5
+  groundAcceleration: 90
+  groundDeceleration: 110
+  groundStickForce: 2
+  shootingRunSpeedPenalty: 0.2
+  gravity: 28
+  jumpHeight: 1.25
+  maxFallSpeed: 40
+  coyoteTime: 0.1
+  jumpBufferTime: 0.12
+  forwardJumpBoost: 0.15
+  forwardInputThreshold: 0.5
+  bhopWindow: 0.5
+  stackBhop: 0
+  maxSpeedMultiplier: 1.6
+  airStrafeAcceleration: 14
+  airMaxSpeedFactor: 1.1
+  standHeight: 1.8
+  crouchHeight: 1.1
+  crouchSpeed: 3.2
+  heightChangeSpeed: 8
+  slideDistance: 1
+  slideSpeedBoost: 1.15
+  slideCooldown: 0.35
+  wallRunDuration: 2
+  wallRunDetectDistance: 0.6
+  wallRunSpeedFactor: 1
+  wallRunEntryUpSpeed: 3
+  wallRunRiseGravity: 6
+  wallRunSinkGravity: 1.5
+  wallRunMaxSinkSpeed: 1.2
+  wallStickSpeed: 1.5
+  wallJumpHeight: 1.2
+  wallJumpSpeedFactor: 1
+  wallJumpMinAwayFactor: 0.3
+  wallRunCooldown: 0.25
+  ledgeMaxReach: 2.1
+  ledgeMinHeight: 0.7
+  quickMantleMaxHeight: 1.5
+  ledgeDetectDistance: 0.45
+  hangHandHeight: 1.8
+  hangSnapSpeed: 10
+  hangMinTime: 0.12
+  climbUpSpeed: 4.5
+  climbForwardSpeed: 3.5
+  mantleSpeedMultiplier: 1.6
+  ledgeRegrabCooldown: 0.4

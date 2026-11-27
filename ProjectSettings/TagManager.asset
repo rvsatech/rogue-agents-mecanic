@@ -11,12 +11,12 @@ TagManager:
   - 
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
-  - 
+  - Ground
+  - Climbable
+  - NonClimbable
+  - Player
+  - Target
+  - Projectile
   - 
   - 
   - 

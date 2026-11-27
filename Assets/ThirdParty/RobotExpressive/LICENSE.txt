@@ -1,0 +1,5 @@
+RobotExpressive
+Modelo por Tomás Laulhé (Quaternius) - https://www.patreon.com/quaternius
+Licença: CC0 1.0 (domínio público, uso comercial livre, sem atribuição obrigatória)
+Modificações (expressões faciais, conversão para glTF): Don McCurdy
+Origem do arquivo: https://github.com/mrdoob/three.js/tree/dev/examples/models/gltf/RobotExpressive

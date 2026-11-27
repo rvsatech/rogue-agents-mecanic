@@ -5,11 +5,17 @@ using UnityEngine.InputSystem;
 namespace Rogue.Gameplay
 {
     /// <summary>
-    /// Lê teclado e mouse (Input System) e monta o PlayerInputFrame que o motor consome.
+    /// Lê teclado e mouse (Input System) e monta o PlayerInputFrame que o motor e as armas consomem.
     /// Os botões de "apertou" ficam guardados (latch) até o próximo tick consumir,
     /// assim nenhum aperto se perde, mesmo com FPS alto e tick fixo.
     /// Por enquanto as teclas estão no código; quando houver menu de rebind,
     /// elas migram para um arquivo .inputactions em Assets/_Project/Input.
+    ///
+    /// Teclas:
+    ///   WASD mover · Espaço pular · Shift agachar (segurar) · Shift + Espaço perto da parede = wall run
+    ///   Ctrl deitar/levantar · C slide · Alt cambalhota
+    ///   1 rifle · 2 pistola · 3 faca · 4 gelo · Q troca rápida
+    ///   Botão esquerdo atirar/usar · Botão direito mirar
     /// </summary>
     [DefaultExecutionOrder(-100)]
     public sealed class PlayerInputReader : MonoBehaviour
@@ -25,16 +31,29 @@ namespace Rogue.Gameplay
         private InputAction look;
         private InputAction jump;
         private InputAction crouch;
+        private InputAction wallRun;
+        private InputAction prone;
         private InputAction slide;
         private InputAction roll;
         private InputAction fire;
         private InputAction aim;
-        private InputAction ability;
+        private InputAction weapon1;
+        private InputAction weapon2;
+        private InputAction weapon3;
+        private InputAction weapon4;
+        private InputAction quickSwitch;
+        private InputAction[] allActions;
 
         private bool jumpLatch;
+        private bool proneLatch;
         private bool slideLatch;
         private bool rollLatch;
-        private bool abilityLatch;
+        private bool fireLatch;
+        private bool weapon1Latch;
+        private bool weapon2Latch;
+        private bool weapon3Latch;
+        private bool weapon4Latch;
+        private bool quickSwitchLatch;
 
         public float Yaw { get; private set; }
         public float Pitch { get; private set; }
@@ -50,38 +69,50 @@ namespace Rogue.Gameplay
 
             look = new InputAction("Look", InputActionType.PassThrough, "<Mouse>/delta");
             jump = new InputAction("Jump", InputActionType.Button, "<Keyboard>/space");
-            crouch = new InputAction("Crouch", InputActionType.Button, "<Keyboard>/leftCtrl");
+            crouch = new InputAction("Crouch", InputActionType.Button, "<Keyboard>/leftShift");
+            // Mesma tecla do agachar: o contexto decide (Shift + Espaço perto da parede = correr na parede).
+            wallRun = new InputAction("WallRun", InputActionType.Button, "<Keyboard>/leftShift");
+            prone = new InputAction("Prone", InputActionType.Button, "<Keyboard>/leftCtrl");
             slide = new InputAction("Slide", InputActionType.Button, "<Keyboard>/c");
-            roll = new InputAction("Roll", InputActionType.Button, "<Keyboard>/leftShift");
+            roll = new InputAction("Roll", InputActionType.Button, "<Keyboard>/leftAlt");
             fire = new InputAction("Fire", InputActionType.Button, "<Mouse>/leftButton");
             aim = new InputAction("Aim", InputActionType.Button, "<Mouse>/rightButton");
-            ability = new InputAction("Ability", InputActionType.Button, "<Keyboard>/e");
+            weapon1 = new InputAction("Weapon1", InputActionType.Button, "<Keyboard>/1");
+            weapon2 = new InputAction("Weapon2", InputActionType.Button, "<Keyboard>/2");
+            weapon3 = new InputAction("Weapon3", InputActionType.Button, "<Keyboard>/3");
+            weapon4 = new InputAction("Weapon4", InputActionType.Button, "<Keyboard>/4");
+            quickSwitch = new InputAction("QuickSwitch", InputActionType.Button, "<Keyboard>/q");
+
+            allActions = new[]
+            {
+                move, look, jump, crouch, wallRun, prone, slide, roll, fire, aim,
+                weapon1, weapon2, weapon3, weapon4, quickSwitch
+            };
 
             Yaw = transform.eulerAngles.y;
         }
 
         private void OnEnable()
         {
-            move.Enable(); look.Enable(); jump.Enable(); crouch.Enable(); slide.Enable();
-            roll.Enable(); fire.Enable(); aim.Enable(); ability.Enable();
+            foreach (InputAction action in allActions) action.Enable();
             LockCursor(true);
         }
 
         private void OnDisable()
         {
-            move.Disable(); look.Disable(); jump.Disable(); crouch.Disable(); slide.Disable();
-            roll.Disable(); fire.Disable(); aim.Disable(); ability.Disable();
+            foreach (InputAction action in allActions) action.Disable();
             LockCursor(false);
         }
 
         private void OnDestroy()
         {
-            move.Dispose(); look.Dispose(); jump.Dispose(); crouch.Dispose(); slide.Dispose();
-            roll.Dispose(); fire.Dispose(); aim.Dispose(); ability.Dispose();
+            foreach (InputAction action in allActions) action.Dispose();
         }
 
         private void Update()
         {
+            // O clique que prende o mouse na tela não pode virar tiro.
+            bool wasLocked = Cursor.lockState == CursorLockMode.Locked;
             HandleCursor();
 
             if (Cursor.lockState == CursorLockMode.Locked)
@@ -93,9 +124,15 @@ namespace Rogue.Gameplay
             }
 
             if (jump.WasPressedThisFrame()) jumpLatch = true;
+            if (prone.WasPressedThisFrame()) proneLatch = true;
             if (slide.WasPressedThisFrame()) slideLatch = true;
             if (roll.WasPressedThisFrame()) rollLatch = true;
-            if (ability.WasPressedThisFrame()) abilityLatch = true;
+            if (wasLocked && fire.WasPressedThisFrame()) fireLatch = true;
+            if (weapon1.WasPressedThisFrame()) weapon1Latch = true;
+            if (weapon2.WasPressedThisFrame()) weapon2Latch = true;
+            if (weapon3.WasPressedThisFrame()) weapon3Latch = true;
+            if (weapon4.WasPressedThisFrame()) weapon4Latch = true;
+            if (quickSwitch.WasPressedThisFrame()) quickSwitchLatch = true;
         }
 
         /// <summary>Entrega os comandos para o tick atual e limpa os "apertou".</summary>
@@ -109,14 +146,22 @@ namespace Rogue.Gameplay
                 JumpPressed = jumpLatch,
                 JumpHeld = jump.IsPressed(),
                 CrouchHeld = crouch.IsPressed(),
+                WallRunHeld = wallRun.IsPressed(),
+                ProneTogglePressed = proneLatch,
                 SlidePressed = slideLatch,
                 RollPressed = rollLatch,
-                FireHeld = fire.IsPressed(),
+                FireHeld = fire.IsPressed() && Cursor.lockState == CursorLockMode.Locked,
+                FirePressed = fireLatch,
                 AimHeld = aim.IsPressed(),
-                AbilityPressed = abilityLatch
+                Weapon1Pressed = weapon1Latch,
+                Weapon2Pressed = weapon2Latch,
+                Weapon3Pressed = weapon3Latch,
+                Weapon4Pressed = weapon4Latch,
+                QuickSwitchPressed = quickSwitchLatch
             };
 
-            jumpLatch = slideLatch = rollLatch = abilityLatch = false;
+            jumpLatch = proneLatch = slideLatch = rollLatch = fireLatch = false;
+            weapon1Latch = weapon2Latch = weapon3Latch = weapon4Latch = quickSwitchLatch = false;
             return frame;
         }
 

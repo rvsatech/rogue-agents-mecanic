@@ -4,16 +4,24 @@ using UnityEngine;
 namespace Rogue.Gameplay
 {
     /// <summary>
-    /// "Cérebro" do movimento. Roda em tick fixo (FixedUpdate) e move a cápsula
-    /// com CharacterController: o código decide a velocidade exata a cada tick,
-    /// sem física "solta" empurrando o personagem. É isso que dá controle preciso e sem delay.
+    /// "Cérebro" do movimento. Roda em tick fixo (FixedUpdate) e move a cápsula com
+    /// CharacterController: o código decide a velocidade exata a cada tick, sem física "solta"
+    /// empurrando o personagem. É isso que dá controle preciso e sem delay.
+    ///
+    /// O motor é dividido por MODO, um arquivo para cada (partial class):
+    ///   PlayerMotor.cs              -> este arquivo: ciclo do tick e funções comuns
+    ///   PlayerMotor.Locomotion.cs   -> andar, correr, agachar, deitar, pular, air strafe
+    ///   PlayerMotor.Slide.cs        -> slide
+    ///   PlayerMotor.Roll.cs         -> cambalhota
+    ///   PlayerMotor.WallRun.cs      -> correr na parede e salto da parede
+    ///   PlayerMotor.Ledge.cs        -> agarrar beirada, ficar pendurado e subir
     ///
     /// A parte visual (boneco e câmera) NÃO fica aqui: ela lê PreviousPosition/CurrentPosition
-    /// e interpola, para ficar suave mesmo com o monitor em 144 Hz e a simulação em 60 Hz.
+    /// e o State, e interpola, para ficar suave em qualquer FPS.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     [DefaultExecutionOrder(-50)]
-    public sealed class PlayerMotor : MonoBehaviour
+    public sealed partial class PlayerMotor : MonoBehaviour
     {
         [SerializeField] private MovementConfig config;
         [SerializeField] private PlayerInputReader input;
@@ -30,6 +38,17 @@ namespace Rogue.Gameplay
 
         /// <summary>Posição no fim do último tick.</summary>
         public Vector3 CurrentPosition { get; private set; }
+
+        public float Radius => controller != null ? controller.radius : 0.35f;
+
+        /// <summary>
+        /// Multiplicador de velocidade da arma na mão (faca 1.15, pistola 1.10, rifle 1.0).
+        /// Quem define é o PlayerWeapons; vale para chão, ar, parede e slide.
+        /// </summary>
+        public float WeaponSpeedMultiplier { get; set; } = 1f;
+
+        /// <summary>Perda de velocidade correndo no chão enquanto atira (0.2 = -20%). Definido pelo PlayerWeapons.</summary>
+        public float FiringGroundPenalty { get; set; }
 
         private void Awake()
         {
@@ -63,182 +82,93 @@ namespace Rogue.Gameplay
             LastInput = frame;
             PreviousPosition = transform.position;
 
-            // 1) Relógios internos
-            state.JumpBufferTimer = frame.JumpPressed
-                ? config.jumpBufferTime
-                : Mathf.Max(0f, state.JumpBufferTimer - dt);
-            state.TimeSinceGrounded = state.Grounded ? 0f : state.TimeSinceGrounded + dt;
-            state.TimeSinceLanded += dt;
+            UpdateTimers(frame, dt);
 
-            // A janela do bhop acabou com o pé no chão: perde o bônus.
-            if (state.Grounded && state.SpeedMultiplier > 1f && state.TimeSinceLanded > config.bhopWindow)
-                state.SpeedMultiplier = 1f;
-
-            // 2) Agachar
-            UpdateCrouch(frame, dt);
-
-            // 3) Velocidade horizontal (chão ou ar)
-            Vector3 wishDir = WishDirection(frame);
-            Vector3 flat = new Vector3(state.Velocity.x, 0f, state.Velocity.z);
-            float vy = state.Velocity.y;
-
-            flat = state.Grounded ? GroundMove(flat, wishDir, dt) : AirMove(flat, wishDir, dt);
-
-            // 4) Pulo ou gravidade
-            bool canJump = state.Grounded ||
-                           (!state.JumpedSinceGrounded && state.TimeSinceGrounded <= config.coyoteTime);
-
-            if (state.JumpBufferTimer > 0f && canJump)
-                Jump(frame, ref flat, ref vy);
-            else if (state.Grounded)
-                vy = -config.groundStickForce;
-            else
-                vy = Mathf.Max(vy - config.gravity * dt, -config.maxFallSpeed);
-
-            // 5) Mover de fato
-            Vector3 velocity = new Vector3(flat.x, vy, flat.z);
-            CollisionFlags flags = controller.Move(velocity * dt);
-
-            // Bateu a cabeça: para de subir.
-            if ((flags & CollisionFlags.Above) != 0 && vy > 0f)
-                vy = 0f;
-
-            // Bateu de lado numa parede: fica só com a parte da velocidade que realmente andou
-            // (evita "acumular" velocidade contra a parede).
-            if ((flags & CollisionFlags.Sides) != 0)
+            switch (state.Mode)
             {
-                Vector3 actual = (transform.position - PreviousPosition) / dt;
-                flat = new Vector3(actual.x, 0f, actual.z);
+                case MotorMode.Slide: SimulateSlide(frame, dt); break;
+                case MotorMode.Roll: SimulateRoll(frame, dt); break;
+                case MotorMode.WallRun: SimulateWallRun(frame, dt); break;
+                case MotorMode.LedgeHang: SimulateLedgeHang(frame, dt); break;
+                case MotorMode.LedgeClimb: SimulateLedgeClimb(frame, dt); break;
+                default: SimulateLocomotion(frame, dt); break;
             }
 
-            // 6) Chão
-            bool wasGrounded = state.Grounded;
-            state.Grounded = controller.isGrounded && vy <= 0f;
-
-            if (state.Grounded && !wasGrounded)
-            {
-                state.TimeSinceLanded = 0f;
-                state.JumpedSinceGrounded = false;
-            }
-
-            state.Velocity = new Vector3(flat.x, vy, flat.z);
-            state.Id = ResolveStateId(flat);
+            state.Id = ResolveStateId();
             CurrentPosition = transform.position;
         }
 
-        private Vector3 WishDirection(in PlayerInputFrame frame)
+        private void UpdateTimers(in PlayerInputFrame frame, float dt)
+        {
+            state.JumpBufferTimer = frame.JumpPressed
+                ? config.jumpBufferTime
+                : Mathf.Max(0f, state.JumpBufferTimer - dt);
+
+            state.TimeSinceGrounded = state.Grounded ? 0f : state.TimeSinceGrounded + dt;
+            state.TimeSinceLanded += dt;
+
+            state.SlideCooldown = Mathf.Max(0f, state.SlideCooldown - dt);
+            state.RollCooldown = Mathf.Max(0f, state.RollCooldown - dt);
+            state.RollBufferTimer = frame.RollPressed
+                ? config.rollBufferTime
+                : Mathf.Max(0f, state.RollBufferTimer - dt);
+            state.WallRunCooldown = Mathf.Max(0f, state.WallRunCooldown - dt);
+            state.LedgeCooldown = Mathf.Max(0f, state.LedgeCooldown - dt);
+
+            // A janela do bhop acabou com o pé no chão: perde o bônus.
+            if (state.Mode == MotorMode.Locomotion && state.Grounded &&
+                state.SpeedMultiplier > 1f && state.TimeSinceLanded > config.bhopWindow)
+            {
+                state.SpeedMultiplier = 1f;
+            }
+        }
+
+        /// <summary>Chamado no tick em que o pé encosta no chão.</summary>
+        private void OnLanded()
+        {
+            state.TimeSinceLanded = 0f;
+            state.JumpedSinceGrounded = false;
+            state.HasLastWall = false; // pode usar a mesma parede de novo
+        }
+
+        private MovementStateId ResolveStateId()
+        {
+            switch (state.Mode)
+            {
+                case MotorMode.Slide: return MovementStateId.Sliding;
+                case MotorMode.Roll: return MovementStateId.Rolling;
+                case MotorMode.WallRun: return MovementStateId.WallRunning;
+                case MotorMode.LedgeHang: return MovementStateId.LedgeHanging;
+                case MotorMode.LedgeClimb: return MovementStateId.Climbing;
+            }
+
+            if (!state.Grounded) return MovementStateId.Airborne;
+            if (state.Prone) return MovementStateId.Prone;
+            if (state.Crouching) return MovementStateId.Crouching;
+            return state.HorizontalSpeed > 0.2f ? MovementStateId.Running : MovementStateId.Idle;
+        }
+
+        // ================= Funções comuns =================
+
+        /// <summary>Direção desejada pelas teclas, relativa para onde a câmera olha.</summary>
+        private static Vector3 WishDirection(in PlayerInputFrame frame)
         {
             Vector3 local = new Vector3(frame.Move.x, 0f, frame.Move.y);
             if (local.sqrMagnitude > 1f) local.Normalize();
             return Quaternion.Euler(0f, frame.Yaw, 0f) * local;
         }
 
-        private Vector3 GroundMove(Vector3 flat, Vector3 wishDir, float dt)
+        /// <summary>Frente da câmera no plano do chão.</summary>
+        private static Vector3 YawForward(in PlayerInputFrame frame)
         {
-            float targetSpeed = state.Crouching
-                ? config.crouchSpeed
-                : config.runSpeed * state.SpeedMultiplier;
-
-            bool hasInput = wishDir.sqrMagnitude > 0.0001f;
-            float rate = hasInput ? config.groundAcceleration : config.groundDeceleration;
-            return Vector3.MoveTowards(flat, wishDir * targetSpeed, rate * dt);
+            return Quaternion.Euler(0f, frame.Yaw, 0f) * Vector3.forward;
         }
 
-        /// <summary>
-        /// No ar: soltar as teclas NÃO tira velocidade. Segurar uma direção curva a trajetória
-        /// (air strafe): A/D + girar o mouse faz o boneco virar no ar.
-        /// </summary>
-        private Vector3 AirMove(Vector3 flat, Vector3 wishDir, float dt)
+        private static Vector3 Flat(Vector3 v) => new Vector3(v.x, 0f, v.z);
+
+        private bool IsNonClimbable(Collider collider)
         {
-            if (wishDir.sqrMagnitude < 0.0001f)
-                return flat;
-
-            Vector3 wish = wishDir.normalized;
-            float cap = config.runSpeed * state.SpeedMultiplier;
-            float speed = flat.magnitude;
-
-            if (speed > 0.1f)
-            {
-                Vector3 dir = flat / speed;
-
-                if (Vector3.Dot(dir, wish) > -0.3f)
-                {
-                    // Curva no ar mantendo a velocidade.
-                    float maxRadians = config.airSteerDegreesPerSecond * Mathf.Deg2Rad * dt;
-                    flat = Vector3.RotateTowards(dir, wish, maxRadians, 0f) * speed;
-                }
-                else
-                {
-                    // Segurando para trás: freio aéreo suave.
-                    return Vector3.MoveTowards(flat, wish * cap, config.airAcceleration * dt);
-                }
-            }
-
-            // Abaixo da velocidade de corrida: ganha velocidade até ela (nunca passa disso no ar).
-            if (flat.magnitude < cap)
-                flat = Vector3.MoveTowards(flat, wish * cap, config.airAcceleration * dt);
-
-            return flat;
-        }
-
-        private void Jump(in PlayerInputFrame frame, ref Vector3 flat, ref float vy)
-        {
-            bool forward = frame.Move.y >= config.forwardInputThreshold;
-            float boost = 1f + config.forwardJumpBoost;
-
-            if (forward)
-            {
-                bool chainAlive = state.SpeedMultiplier > 1f; // ainda dentro da janela do bhop
-
-                if (!chainAlive)
-                {
-                    state.SpeedMultiplier = boost;
-                    flat *= boost;
-                }
-                else if (config.stackBhop)
-                {
-                    float next = Mathf.Min(state.SpeedMultiplier * boost, config.maxSpeedMultiplier);
-                    flat *= next / state.SpeedMultiplier;
-                    state.SpeedMultiplier = next;
-                }
-                // Senão: mantém a velocidade aumentada (bhop sem acumular).
-            }
-            else
-            {
-                // Pulo de lado/para trás não ganha bônus, mas também não perde velocidade.
-                state.SpeedMultiplier = 1f;
-            }
-
-            vy = Mathf.Sqrt(2f * config.gravity * config.jumpHeight);
-
-            state.JumpBufferTimer = 0f;
-            state.JumpedSinceGrounded = true;
-            state.Grounded = false;
-        }
-
-        private void UpdateCrouch(in PlayerInputFrame frame, float dt)
-        {
-            if (frame.CrouchHeld)
-                state.Crouching = true;
-            else if (state.Crouching && HasHeadroomToStand())
-                state.Crouching = false;
-
-            float target = state.Crouching ? config.crouchHeight : config.standHeight;
-            if (!Mathf.Approximately(state.Height, target))
-            {
-                state.Height = Mathf.MoveTowards(state.Height, target, config.heightChangeSpeed * dt);
-                ApplyHeight(state.Height);
-            }
-        }
-
-        /// <summary>Tem espaço acima para ficar em pé? (ex.: saindo de um túnel baixo)</summary>
-        private bool HasHeadroomToStand()
-        {
-            float radius = controller.radius * 0.95f;
-            Vector3 pos = transform.position;
-            Vector3 bottom = pos + Vector3.up * (radius + 0.1f);
-            Vector3 top = pos + Vector3.up * (config.standHeight - radius);
-            return !Physics.CheckCapsule(bottom, top, radius, config.environmentMask, QueryTriggerInteraction.Ignore);
+            return collider != null && (config.nonClimbableMask.value & (1 << collider.gameObject.layer)) != 0;
         }
 
         private void ApplyHeight(float height)
@@ -247,11 +177,26 @@ namespace Rogue.Gameplay
             controller.center = new Vector3(0f, height * 0.5f, 0f);
         }
 
-        private MovementStateId ResolveStateId(Vector3 flat)
+        /// <summary>Muda a altura da cápsula aos poucos; só cresce se tiver espaço acima.</summary>
+        private void UpdateHeight(float targetHeight, float dt)
         {
-            if (!state.Grounded) return MovementStateId.Airborne;
-            if (state.Crouching) return MovementStateId.Crouching;
-            return flat.sqrMagnitude > 0.04f ? MovementStateId.Running : MovementStateId.Idle;
+            if (targetHeight > state.Height && !HasHeadroom(targetHeight))
+                targetHeight = state.Height;
+
+            if (Mathf.Approximately(state.Height, targetHeight)) return;
+
+            state.Height = Mathf.MoveTowards(state.Height, targetHeight, config.heightChangeSpeed * dt);
+            ApplyHeight(state.Height);
+        }
+
+        /// <summary>Tem espaço acima para a cápsula ficar com essa altura?</summary>
+        private bool HasHeadroom(float height)
+        {
+            float radius = controller.radius * 0.95f;
+            Vector3 pos = transform.position;
+            Vector3 bottom = pos + Vector3.up * (radius + 0.1f);
+            Vector3 top = pos + Vector3.up * Mathf.Max(radius + 0.1f, height - radius);
+            return !Physics.CheckCapsule(bottom, top, radius, config.environmentMask, QueryTriggerInteraction.Ignore);
         }
     }
 }
