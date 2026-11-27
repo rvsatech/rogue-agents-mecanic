@@ -6,7 +6,7 @@ namespace Rogue.Gameplay
     /// Câmera de ombro em 3ª pessoa feita à mão (sem Cinemachine): menos dependências e controle
     /// total do "feel". A mira é sempre o centro da tela.
     /// - Agachar: a câmera desce pouco e suave (não "dá zoom").
-    /// - Botão direito: modo mira (mais perto do ombro e FOV menor).
+    /// - Botão direito: modo mira (mais perto do ombro e FOV menor) — só com rifle/pistola na mão.
     /// Roda no LateUpdate, depois que o visual do personagem já se moveu no frame.
     /// </summary>
     [RequireComponent(typeof(Camera))]
@@ -22,6 +22,9 @@ namespace Rogue.Gameplay
         [Tooltip("Usado só se não houver PlayerVisual.")]
         [SerializeField] private Transform target;
 
+        [Tooltip("Armas do jogador: o zoom da mira só funciona com arma de fogo.")]
+        [SerializeField] private PlayerWeapons weapons;
+
         private Camera cam;
         private float pivotHeight = -1f;
         private float aimBlend;
@@ -29,6 +32,7 @@ namespace Rogue.Gameplay
         private void Awake()
         {
             cam = GetComponent<Camera>();
+            if (weapons == null && motor != null) weapons = motor.GetComponent<PlayerWeapons>();
         }
 
         private void LateUpdate()
@@ -52,7 +56,7 @@ namespace Rogue.Gameplay
                 : Mathf.MoveTowards(pivotHeight, targetPivot, config.pivotHeightSpeed * dt);
 
             // Mira (botão direito).
-            bool aiming = motor != null && motor.LastInput.AimHeld;
+            bool aiming = motor != null && motor.LastInput.AimHeld && (weapons == null || weapons.CanAimZoom);
             aimBlend = Mathf.MoveTowards(aimBlend, aiming ? 1f : 0f, config.aimLerpSpeed * dt);
             float distance = Mathf.Lerp(config.distance, config.aimDistance, aimBlend);
             float shoulder = Mathf.Lerp(config.shoulderOffset, config.aimShoulderOffset, aimBlend);

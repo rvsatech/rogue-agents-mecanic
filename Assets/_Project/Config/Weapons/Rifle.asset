@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05490afbcf71fc044a242ae939fc0127, type: 3}
+  m_Name: Rifle
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.WeaponConfig
+  displayName: Rifle
+  slot: 0
+  kind: 0
+  moveSpeedMultiplier: 1
+  firingGroundSpeedPenalty: 0.2
+  equipTime: 0.4
+  automatic: 1
+  fireRate: 10
+  damage: 20
+  range: 150
+  spreadDegrees: 0.6
+  airSpreadDegrees: 1.5
+  proneSpreadFactor: 0.5
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294966783
+  meleeRange: 1.9
+  meleeRadius: 0.45
+  meleeAttackDuration: 0.32
+  meleeHitTime: 0.1
+  aimHoldOffset: {x: 0.07, y: -0.08, z: 0.3}
+  twoHanded: 1
+  recoilDistance: 0.06
+  tracerDuration: 0.05
+  tracerWidth: 0.03
+  muzzleFlashDuration: 0.04

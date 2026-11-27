@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
 using Rogue.DebugTools;
 using Rogue.Gameplay;
 using UnityEditor;
@@ -11,7 +13,7 @@ namespace Rogue.EditorTools
     /// <summary>
     /// Menu "Rogue > Criar cena Sandbox_Movement": monta sozinho a arena de teste
     /// (chão, paredes de wall-run, degraus de escalada, túnel baixo, rampa, alvos),
-    /// o jogador (manequim + 4 armas + gelo), a câmera e o HUD.
+    /// o jogador (manequim + 4 armas + gelo + sons), a câmera e o HUD.
     /// Também cria/atualiza os arquivos de configuração. Pode rodar de novo quando quiser.
     /// </summary>
     public static class SandboxBuilder
@@ -20,10 +22,17 @@ namespace Rogue.EditorTools
         private const string ConfigFolder = "Assets/_Project/Config";
         private const string WeaponConfigFolder = "Assets/_Project/Config/Weapons";
         private const string MaterialFolder = "Assets/_Project/Art/Materials";
+        private const string SoundFolder = "Assets/_Project/Audio/SFX";
         private const string CharacterModelPath = "Assets/ThirdParty/Quaternius/UniversalAnimationLibrary/AnimationLibrary_Godot_Standard.gltf";
 
         /// <summary>Sobe quando os valores padrão do MovementConfig mudam (atualiza configs antigas uma vez).</summary>
         private const int MovementDefaultsVersion = 2;
+
+        /// <summary>Sobe quando os valores padrão das armas mudam (v1: munição e recarga).</summary>
+        private const int WeaponDefaultsVersion = 1;
+
+        /// <summary>Sobe quando os valores padrão da barreira mudam (v1: 2,3 m, meio pente, 1 minuto).</summary>
+        private const int IceWallDefaultsVersion = 1;
 
         [MenuItem("Rogue/Criar cena Sandbox_Movement")]
         public static void Build()
@@ -37,6 +46,7 @@ namespace Rogue.EditorTools
             int nonClimbableLayer = EnsureLayer("NonClimbable");
             int playerLayer = EnsureLayer("Player");
             int targetLayer = EnsureLayer("Target");
+            int iceWallLayer = EnsureLayer("IceWall");
             EnsureLayer("Projectile");
 
             int environmentMask = ~(1 << playerLayer);
@@ -45,7 +55,7 @@ namespace Rogue.EditorTools
             Material mGround = GetMaterial("M_Ground", new Color(0.36f, 0.37f, 0.39f));
             Material mWall = GetMaterial("M_Wall", new Color(0.26f, 0.42f, 0.62f));
             Material mBox = GetMaterial("M_Box", new Color(0.85f, 0.55f, 0.2f));
-            Material mIce = GetMaterial("M_Ice", new Color(0.55f, 0.9f, 1f));
+            Material mNoClimb = GetMaterial("M_NaoEscalavel", new Color(0.55f, 0.3f, 0.65f));
             Material mTarget = GetMaterial("M_Target", new Color(0.85f, 0.18f, 0.18f));
             Material mMarker = GetMaterial("M_Marker", new Color(0.95f, 0.95f, 0.95f));
             Material mPlayer = GetMaterial("M_Player", new Color(0.2f, 0.75f, 0.45f));
@@ -65,8 +75,10 @@ namespace Rogue.EditorTools
             IceWallConfig iceWallConfig = LoadOrCreate<IceWallConfig>($"{ConfigFolder}/IceWallConfig.asset", out _);
 
             movementConfig.environmentMask = environmentMask;
-            // Gelo e alvos (que representam jogadores) não podem ser escalados nem usados no wall run.
+            // Bloco não escalável e alvos (que representam jogadores): não dá para agarrar nem correr na parede.
             movementConfig.nonClimbableMask = (1 << nonClimbableLayer) | (1 << targetLayer);
+            // Barreira de gelo: dá para escalar, mas não para correr na parede.
+            movementConfig.noWallRunMask = 1 << iceWallLayer;
             UpgradeMovementDefaults(movementConfig);
             cameraConfig.collisionMask = environmentMask;
 
@@ -79,6 +91,10 @@ namespace Rogue.EditorTools
             WeaponConfig pistolConfig = GetWeaponConfig("Pistola", WeaponSlot.Secondary, environmentMask);
             WeaponConfig knifeConfig = GetWeaponConfig("Karambit", WeaponSlot.Melee, environmentMask);
             WeaponConfig iceConfig = GetWeaponConfig("Gelo", WeaponSlot.Gadget, environmentMask);
+            UpgradeIceWallDefaults(iceWallConfig, rifleConfig);
+
+            SoundBank soundBank = LoadOrCreate<SoundBank>($"{ConfigFolder}/SoundBank.asset", out _);
+            SetupSounds(soundBank, rifleConfig, pistolConfig, knifeConfig, iceConfig);
 
             EditorUtility.SetDirty(movementConfig);
             EditorUtility.SetDirty(cameraConfig);
@@ -98,7 +114,7 @@ namespace Rogue.EditorTools
             RenderSettings.ambientLight = new Color(0.45f, 0.47f, 0.5f);
 
             BuildArena(groundLayer, climbableLayer, nonClimbableLayer, targetLayer,
-                mGround, mWall, mBox, mIce, mTarget, mMarker);
+                mGround, mWall, mBox, mNoClimb, mTarget, mMarker);
 
             // ---------- Jogador (física) ----------
             var playerGo = new GameObject("Player");
@@ -146,9 +162,9 @@ namespace Rogue.EditorTools
             weaponRoot.SetParent(visualGo.transform, false);
 
             Transform rifle = CreateRifle(weaponRoot, mGun, mDark, mFlash,
-                out Transform rifleMuzzle, out GameObject rifleFlash, out Transform rifleSupport);
+                out Transform rifleMuzzle, out GameObject rifleFlash, out Transform rifleSupport, out Transform rifleMagazine);
             Transform pistol = CreatePistol(weaponRoot, mGun, mDark, mFlash,
-                out Transform pistolMuzzle, out GameObject pistolFlash, out Transform pistolSupport);
+                out Transform pistolMuzzle, out GameObject pistolFlash, out Transform pistolSupport, out Transform pistolMagazine);
             Transform knife = CreateKarambit(weaponRoot, mSteel, mDark);
             Transform iceGadget = CreateIceGadget(weaponRoot, mGadget, mDark);
 
@@ -179,12 +195,13 @@ namespace Rogue.EditorTools
             Assign(weapons, "aimCamera", cam);
             Assign(weapons, "tracerMaterial", mTracer);
             Assign(weapons, "iceWallPlacer", icePlacer);
-            AssignWeapon(weapons, "primary", rifleConfig, rifle, rifleMuzzle, rifleFlash, rifleSupport);
-            AssignWeapon(weapons, "secondary", pistolConfig, pistol, pistolMuzzle, pistolFlash, pistolSupport);
+            AssignWeapon(weapons, "primary", rifleConfig, rifle, rifleMuzzle, rifleFlash, rifleSupport, rifleMagazine);
+            AssignWeapon(weapons, "secondary", pistolConfig, pistol, pistolMuzzle, pistolFlash, pistolSupport, pistolMagazine);
             AssignWeapon(weapons, "melee", knifeConfig, knife, null, null, null);
             AssignWeapon(weapons, "gadget", iceConfig, iceGadget, null, null, null);
 
             Assign(visual, "weapons", weapons);
+            Assign(rig, "weapons", weapons); // zoom da mira só com arma de fogo
 
             // ---------- Animação do modelo ----------
             var animator = visualGo.AddComponent<CharacterModelAnimator>();
@@ -197,6 +214,15 @@ namespace Rogue.EditorTools
                 Assign(animator, "animationComponent", model.GetComponentInChildren<Animation>());
 
             // ---------- HUD ----------
+            // ---------- Som ----------
+            new GameObject("AudioService").AddComponent<AudioService>();
+            var playerAudio = playerGo.AddComponent<PlayerAudio>();
+            Assign(playerAudio, "bank", soundBank);
+            Assign(playerAudio, "motor", motor);
+            Assign(playerAudio, "weapons", weapons);
+            Assign(playerAudio, "iceWallPlacer", icePlacer);
+            Assign(playerAudio, "modelAnimator", animator);
+
             var hud = new GameObject("DebugHUD").AddComponent<MovementDebugHUD>();
             Assign(hud, "motor", motor);
             Assign(hud, "weapons", weapons);
@@ -212,7 +238,7 @@ namespace Rogue.EditorTools
         // ================= Arena =================
 
         private static void BuildArena(int groundLayer, int climbableLayer, int nonClimbableLayer, int targetLayer,
-            Material mGround, Material mWall, Material mBox, Material mIce, Material mTarget, Material mMarker)
+            Material mGround, Material mWall, Material mBox, Material mNoClimb, Material mTarget, Material mMarker)
         {
             Transform env = new GameObject("Environment").transform;
 
@@ -257,8 +283,8 @@ namespace Rogue.EditorTools
             // Rampa
             Block("Rampa", env, new Vector3(18f, 1.6f, -14f), new Vector3(4f, 0.3f, 10f), mBox, groundLayer, new Vector3(-20f, 0f, 0f));
 
-            // Bloco de gelo de exemplo (NÃO escalável)
-            Block("Gelo_Exemplo", env, new Vector3(-4f, 1f, -6f), new Vector3(3f, 2f, 0.6f), mIce, nonClimbableLayer);
+            // Bloco de exemplo NÃO escalável (roxo): não dá para agarrar nem correr na parede
+            Block("Bloco_NaoEscalavel", env, new Vector3(-4f, 1f, -6f), new Vector3(3f, 2f, 0.6f), mNoClimb, nonClimbableLayer);
 
             // Alvos de tiro (pistola: 3 tiros · rifle: 5 · faca: 2 golpes)
             Transform targets = new GameObject("Alvos").transform;
@@ -370,8 +396,160 @@ namespace Rogue.EditorTools
                 }
             }
 
+            UpgradeWeaponDefaults(config, slot);
             EditorUtility.SetDirty(config);
             return config;
+        }
+
+        /// <summary>Munição e recarga (v1). Roda uma vez por arquivo de arma, novo ou antigo.</summary>
+        private static void UpgradeWeaponDefaults(WeaponConfig config, WeaponSlot slot)
+        {
+            if (config.defaultsVersion >= WeaponDefaultsVersion) return;
+
+            switch (slot)
+            {
+                case WeaponSlot.Primary:   // rifle: 30 no pente, 120 de reserva, 2 s para recarregar
+                    config.magazineSize = 30;
+                    config.reserveAmmo = 120;
+                    config.reloadTime = 2f;
+                    break;
+                case WeaponSlot.Secondary: // pistola: 12 no pente, 48 de reserva, 1,4 s
+                    config.magazineSize = 12;
+                    config.reserveAmmo = 48;
+                    config.reloadTime = 1.4f;
+                    break;
+                default:                   // faca e gelo não usam bala
+                    config.magazineSize = 0;
+                    config.reserveAmmo = 0;
+                    break;
+            }
+
+            config.infiniteReserve = false;
+            config.autoReloadWhenEmpty = true;
+            config.defaultsVersion = WeaponDefaultsVersion;
+        }
+
+        // ================= Sons =================
+
+        /// <summary>
+        /// Liga os arquivos de som (pasta Audio/SFX) aos sons do jogo pelo PREFIXO do nome:
+        /// passo_01.wav, passo_02.wav... viram as variações do som "passo".
+        /// - Para trocar/adicionar: ponha arquivos com o mesmo prefixo na pasta e rode o menu de novo.
+        /// - Volume/tom/3D só são aplicados quando o som ainda está vazio (depois vale o que você ajustar).
+        /// </summary>
+        private static void SetupSounds(SoundBank bank, WeaponConfig rifle, WeaponConfig pistol,
+            WeaponConfig knife, WeaponConfig gadget)
+        {
+            Dictionary<string, List<AudioClip>> clips = LoadSoundClips();
+
+            // Movimento                                    volume  tom min/máx   3D   alcance
+            Cue(bank.footstep, clips, "passo",               0.32f, 0.90f, 1.10f, 1f, 25f);
+            Cue(bank.jump, clips, "pulo",                    0.40f, 0.94f, 1.06f, 1f, 25f);
+            Cue(bank.land, clips, "aterrissagem",            0.55f, 0.94f, 1.06f, 1f, 30f);
+            Cue(bank.slideStart, clips, "slide_inicio",      0.50f, 0.95f, 1.05f, 1f, 25f);
+            Cue(bank.slideLoop, clips, "slide_loop",         0.30f, 1.00f, 1.00f, 1f, 25f);
+            Cue(bank.roll, clips, "cambalhota",              0.50f, 0.95f, 1.05f, 1f, 25f);
+            Cue(bank.cloth, clips, "roupa",                  0.30f, 0.92f, 1.08f, 1f, 15f);
+            Cue(bank.proneDown, clips, "deitar",             0.50f, 0.95f, 1.05f, 1f, 20f);
+            Cue(bank.proneUp, clips, "levantar",             0.40f, 0.95f, 1.05f, 1f, 20f);
+            Cue(bank.ledgeGrab, clips, "agarrar",            0.50f, 0.95f, 1.05f, 1f, 25f);
+            Cue(bank.wallRunStart, clips, "parede",          0.40f, 0.95f, 1.05f, 1f, 25f);
+            // Voz
+            Cue(bank.voiceEffort, clips, "voz_esforco",      0.50f, 0.96f, 1.04f, 1f, 25f);
+            Cue(bank.voiceShort, clips, "voz_curta",         0.45f, 0.95f, 1.05f, 1f, 25f);
+            // Acertos
+            Cue(bank.bulletImpact, clips, "impacto",         0.50f, 0.90f, 1.10f, 1f, 40f);
+            Cue(bank.bulletHitTarget, clips, "acerto_alvo",  0.60f, 0.95f, 1.05f, 1f, 40f);
+            Cue(bank.hitMarker, clips, "hitmarker",          0.35f, 0.98f, 1.02f, 0f, 10f);
+            // Gelo
+            Cue(bank.iceCreate, clips, "gelo_criar",         0.70f, 0.95f, 1.05f, 1f, 45f);
+            Cue(bank.iceImpact, clips, "gelo_impacto",       0.50f, 0.92f, 1.08f, 1f, 40f);
+            Cue(bank.iceBreak, clips, "gelo_quebrar",        0.80f, 0.95f, 1.05f, 1f, 50f);
+            EditorUtility.SetDirty(bank);
+
+            // Rifle
+            Cue(rifle.fireSound, clips, "rifle_tiro",               0.75f, 0.96f, 1.04f, 1f, 120f);
+            Cue(rifle.equipSound, clips, "sacar_arma",              0.45f, 0.95f, 1.05f, 1f, 20f);
+            Cue(rifle.dryFireSound, clips, "sem_bala",              0.50f, 0.95f, 1.05f, 1f, 15f);
+            Cue(rifle.reloadOutSound, clips, "recarga_tira",        0.60f, 0.96f, 1.04f, 1f, 20f);
+            Cue(rifle.reloadInSound, clips, "recarga_poe",          0.60f, 0.96f, 1.04f, 1f, 20f);
+            Cue(rifle.reloadRackSound, clips, "recarga_engatilha",  0.60f, 0.96f, 1.04f, 1f, 20f);
+            // Pistola: mesmos sons de recarga, mais agudos (peças menores)
+            Cue(pistol.fireSound, clips, "pistola_tiro",            0.70f, 0.96f, 1.04f, 1f, 100f);
+            Cue(pistol.equipSound, clips, "sacar_arma",             0.40f, 1.08f, 1.16f, 1f, 20f);
+            Cue(pistol.dryFireSound, clips, "sem_bala",             0.50f, 1.10f, 1.20f, 1f, 15f);
+            Cue(pistol.reloadOutSound, clips, "recarga_tira",       0.55f, 1.12f, 1.20f, 1f, 20f);
+            Cue(pistol.reloadInSound, clips, "recarga_poe",         0.55f, 1.12f, 1.20f, 1f, 20f);
+            Cue(pistol.reloadRackSound, clips, "recarga_engatilha", 0.55f, 1.15f, 1.25f, 1f, 20f);
+            // Faca
+            Cue(knife.equipSound, clips, "sacar_faca",              0.60f, 0.96f, 1.04f, 1f, 20f);
+            Cue(knife.swingSound, clips, "faca_golpe",              0.50f, 0.92f, 1.08f, 1f, 20f);
+            Cue(knife.meleeHitSound, clips, "faca_acerto",          0.60f, 0.94f, 1.06f, 1f, 25f);
+            // Gelo (gadget)
+            Cue(gadget.equipSound, clips, "sacar_gelo",             0.45f, 0.96f, 1.04f, 1f, 20f);
+
+            EditorUtility.SetDirty(rifle);
+            EditorUtility.SetDirty(pistol);
+            EditorUtility.SetDirty(knife);
+            EditorUtility.SetDirty(gadget);
+        }
+
+        private static void Cue(SoundCue cue, Dictionary<string, List<AudioClip>> clips, string prefix,
+            float volume, float minPitch, float maxPitch, float spatialBlend, float maxDistance)
+        {
+            if (cue == null) return;
+            bool firstTime = !cue.HasClips;
+            if (clips.TryGetValue(prefix, out List<AudioClip> found) && found.Count > 0)
+                cue.clips = found.ToArray();
+            if (firstTime)
+                cue.Set(volume, minPitch, maxPitch, spatialBlend, maxDistance);
+        }
+
+        /// <summary>Todos os sons da pasta, agrupados pelo prefixo ("passo_03" vira "passo").</summary>
+        private static Dictionary<string, List<AudioClip>> LoadSoundClips()
+        {
+            var result = new Dictionary<string, List<AudioClip>>();
+            if (!AssetDatabase.IsValidFolder(SoundFolder))
+            {
+                Debug.LogWarning($"[Rogue] Pasta de sons não encontrada ({SoundFolder}). O jogo roda sem som.");
+                return result;
+            }
+
+            string[] guids = AssetDatabase.FindAssets("t:AudioClip", new[] { SoundFolder });
+            var paths = new List<string>();
+            foreach (string guid in guids) paths.Add(AssetDatabase.GUIDToAssetPath(guid));
+            paths.Sort(System.StringComparer.Ordinal);
+
+            foreach (string path in paths)
+            {
+                var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                if (clip == null) continue;
+
+                string fileName = Path.GetFileNameWithoutExtension(path);
+                Match match = Regex.Match(fileName, @"^(.*)_(\d+)$");
+                string prefix = match.Success ? match.Groups[1].Value : fileName;
+
+                if (!result.TryGetValue(prefix, out List<AudioClip> list))
+                    result[prefix] = list = new List<AudioClip>();
+                list.Add(clip);
+            }
+
+            Debug.Log($"[Rogue] Sons: {paths.Count} arquivos em {result.Count} grupos.");
+            return result;
+        }
+
+        /// <summary>Barreira (v1): 2,3 m (escalável), quebra com meio pente do rifle, quebra sozinha em 1 minuto.</summary>
+        private static void UpgradeIceWallDefaults(IceWallConfig config, WeaponConfig rifle)
+        {
+            if (config.healthReferenceWeapon == null) config.healthReferenceWeapon = rifle;
+            if (config.defaultsVersion >= IceWallDefaultsVersion) return;
+
+            config.height = 2.3f;
+            config.healthInMagazines = 0.5f;
+            config.health = 300f;
+            config.lifetime = 60f;
+            config.defaultsVersion = IceWallDefaultsVersion;
+            Debug.Log("[Rogue] IceWallConfig atualizado: 2,3 m, meio pente do rifle, 1 minuto.");
         }
 
         // ================= Modelos =================
@@ -456,7 +634,7 @@ namespace Rogue.EditorTools
 
         /// <summary>Rifle de blocos: corpo, cano, cabo, carregador, mira. O ponto de giro é o cabo (mão direita).</summary>
         private static Transform CreateRifle(Transform parent, Material body, Material dark, Material flash,
-            out Transform muzzle, out GameObject muzzleFlash, out Transform supportGrip)
+            out Transform muzzle, out GameObject muzzleFlash, out Transform supportGrip, out Transform magazine)
         {
             var gun = new GameObject("Rifle").transform;
             gun.SetParent(parent, false);
@@ -464,7 +642,7 @@ namespace Rogue.EditorTools
             Part("Corpo", gun, new Vector3(0f, 0.03f, 0.15f), new Vector3(0.07f, 0.1f, 0.38f), body);
             Part("Cano", gun, new Vector3(0f, 0.05f, 0.42f), new Vector3(0.035f, 0.035f, 0.2f), dark);
             Part("Cabo", gun, new Vector3(0f, -0.06f, 0.02f), new Vector3(0.05f, 0.12f, 0.06f), dark, new Vector3(-15f, 0f, 0f));
-            Part("Carregador", gun, new Vector3(0f, -0.07f, 0.17f), new Vector3(0.045f, 0.14f, 0.07f), dark);
+            magazine = Part("Carregador", gun, new Vector3(0f, -0.07f, 0.17f), new Vector3(0.045f, 0.14f, 0.07f), dark);
             Part("Mira", gun, new Vector3(0f, 0.1f, 0.12f), new Vector3(0.03f, 0.03f, 0.08f), dark);
 
             muzzle = CreateMuzzle(gun, new Vector3(0f, 0.05f, 0.53f), flash, new Vector3(0.12f, 0.12f, 0.2f), out muzzleFlash);
@@ -478,7 +656,7 @@ namespace Rogue.EditorTools
 
         /// <summary>Pistola de blocos: ferrolho, corpo e cabo. A mão esquerda apoia por baixo da direita.</summary>
         private static Transform CreatePistol(Transform parent, Material body, Material dark, Material flash,
-            out Transform muzzle, out GameObject muzzleFlash, out Transform supportGrip)
+            out Transform muzzle, out GameObject muzzleFlash, out Transform supportGrip, out Transform magazine)
         {
             var pistol = new GameObject("Pistola").transform;
             pistol.SetParent(parent, false);
@@ -486,6 +664,8 @@ namespace Rogue.EditorTools
             Part("Ferrolho", pistol, new Vector3(0f, 0.035f, 0.06f), new Vector3(0.032f, 0.035f, 0.17f), dark);
             Part("Corpo", pistol, new Vector3(0f, 0.01f, 0.05f), new Vector3(0.03f, 0.025f, 0.14f), body);
             Part("Cabo", pistol, new Vector3(0f, -0.045f, -0.005f), new Vector3(0.03f, 0.1f, 0.045f), dark, new Vector3(-12f, 0f, 0f));
+            // Carregador dentro do cabo (a base aparece um pouco embaixo); sai na mão esquerda ao recarregar.
+            magazine = Part("Carregador", pistol, new Vector3(0f, -0.074f, 0.001f), new Vector3(0.024f, 0.07f, 0.034f), body, new Vector3(-12f, 0f, 0f));
 
             muzzle = CreateMuzzle(pistol, new Vector3(0f, 0.035f, 0.15f), flash, new Vector3(0.08f, 0.08f, 0.12f), out muzzleFlash);
 
@@ -548,7 +728,7 @@ namespace Rogue.EditorTools
             return muzzle;
         }
 
-        private static void Part(string name, Transform parent, Vector3 localPosition, Vector3 size, Material material,
+        private static Transform Part(string name, Transform parent, Vector3 localPosition, Vector3 size, Material material,
             Vector3? euler = null)
         {
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -559,6 +739,7 @@ namespace Rogue.EditorTools
             go.transform.localScale = size;
             if (euler.HasValue) go.transform.localRotation = Quaternion.Euler(euler.Value);
             go.GetComponent<MeshRenderer>().sharedMaterial = material;
+            return go.transform;
         }
 
         private static GameObject Block(string name, Transform parent, Vector3 position, Vector3 size,
@@ -699,13 +880,14 @@ namespace Rogue.EditorTools
         }
 
         private static void AssignWeapon(Object weapons, string slotField, WeaponConfig config, Transform model,
-            Transform muzzle, GameObject muzzleFlash, Transform supportGrip)
+            Transform muzzle, GameObject muzzleFlash, Transform supportGrip, Transform magazine = null)
         {
             Assign(weapons, $"{slotField}.config", config);
             Assign(weapons, $"{slotField}.model", model);
             Assign(weapons, $"{slotField}.muzzle", muzzle);
             Assign(weapons, $"{slotField}.muzzleFlash", muzzleFlash);
             Assign(weapons, $"{slotField}.supportGrip", supportGrip);
+            Assign(weapons, $"{slotField}.magazine", magazine);
         }
 
         private static void AddToBuildSettings(string path)

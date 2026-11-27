@@ -12,7 +12,7 @@ namespace Rogue.Gameplay
     ///   (ex.: correr de ré atirando para frente).
     /// - Cambalhota: para a direção da cambalhota.
     /// - Parede: ao longo da parede, inclinado para fora. Pendurado: para a parede.
-    /// - Deitado: de bruços, virado para a mira.
+    /// - Deitado: de barriga para cima, pés para a mira, cabeça levantada olhando para frente.
     /// </summary>
     public sealed class PlayerVisual : MonoBehaviour
     {
@@ -46,7 +46,7 @@ namespace Rogue.Gameplay
         [SerializeField] private float hipHeight = 0.9f;
 
         [Tooltip("Altura do quadril deitado (metade da grossura do corpo).")]
-        [SerializeField] private float proneHipHeight = 0.17f;
+        [SerializeField] private float proneHipHeight = 0.15f;
 
         [Tooltip("Segundos para deitar/levantar.")]
         [SerializeField] private float proneTransitionTime = 0.25f;
@@ -162,9 +162,10 @@ namespace Rogue.Gameplay
             if (hangOffset > 0f)
                 position += -s.LedgeNormal * hangOffset;
 
-            // Deitado: gira o corpo 90° para frente em volta do quadril e encosta no chão.
+            // Deitado: gira o corpo 90° PARA TRÁS em volta do quadril (barriga para cima, pés para a mira)
+            // e encosta as costas no chão.
             proneWeight = Mathf.MoveTowards(proneWeight, s.Prone ? 1f : 0f, dt / Mathf.Max(0.01f, proneTransitionTime));
-            Quaternion bodyRotation = Quaternion.Euler(0f, bodyYaw, 0f) * Quaternion.Euler(90f * proneWeight, 0f, 0f);
+            Quaternion bodyRotation = Quaternion.Euler(0f, bodyYaw, 0f) * Quaternion.Euler(-90f * proneWeight, 0f, 0f);
             Vector3 hipsWanted = position + Vector3.up * Mathf.Lerp(hipHeight, proneHipHeight, proneWeight);
             Vector3 rootPosition = hipsWanted - bodyRotation * (Vector3.up * hipHeight);
 

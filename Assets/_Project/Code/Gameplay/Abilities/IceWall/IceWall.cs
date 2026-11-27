@@ -4,8 +4,9 @@ using UnityEngine;
 namespace Rogue.Gameplay
 {
     /// <summary>
-    /// Uma barreira de gelo já colocada: bloqueia tiros, não pode ser escalada (layer NonClimbable),
-    /// tem vida (quebra com tiros) e some sozinha depois de um tempo.
+    /// Uma barreira de gelo já colocada: bloqueia tiros, pode ser escalada (layer IceWall, sem wall run),
+    /// tem vida (quebra com meio pente de rifle) e quebra sozinha depois de 1 minuto
+    /// (pisca nos últimos segundos, avisando).
     /// Fica num pool: quando quebra/some, é desativada e reaproveitada na próxima colocação.
     /// </summary>
     public sealed class IceWall : MonoBehaviour, IDamageable
@@ -14,6 +15,9 @@ namespace Rogue.Gameplay
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         [SerializeField] private float spawnPopDuration = 0.08f;
+
+        [Tooltip("Nos últimos segundos antes de quebrar sozinha, a barreira pisca (aviso).")]
+        [SerializeField] private float expireWarningTime = 3f;
 
         private Renderer[] renderers;
         private MaterialPropertyBlock propertyBlock;
@@ -27,8 +31,11 @@ namespace Rogue.Gameplay
         private bool alive;
 
         public bool IsAlive => alive;
+        public HitSurface Surface => HitSurface.Ice;
         public float Health => health;
         public float MaxHealth => maxHealth;
+        /// <summary>Segundos até quebrar sozinha.</summary>
+        public float TimeLeft => alive ? Mathf.Max(0f, expireAt - Time.time) : 0f;
 
         /// <summary>Avisa o colocador para devolver a barreira ao pool.</summary>
         public event Action<IceWall> Broken;
@@ -90,6 +97,16 @@ namespace Rogue.Gameplay
             Color color = flashTimer > 0f
                 ? Color.white
                 : Color.Lerp(damagedColor, baseColor, health / maxHealth);
+
+            // Perto de quebrar sozinha: pisca cada vez mais rápido.
+            float timeLeft = expireAt - Time.time;
+            if (flashTimer <= 0f && expireWarningTime > 0f && timeLeft < expireWarningTime)
+            {
+                float urgency = 1f - Mathf.Clamp01(timeLeft / expireWarningTime);
+                float blinksPerSecond = Mathf.Lerp(2f, 8f, urgency);
+                if (Mathf.Repeat(Time.time * blinksPerSecond, 1f) < 0.5f)
+                    color = Color.Lerp(color, Color.white, 0.55f);
+            }
 
             foreach (Renderer r in renderers)
             {

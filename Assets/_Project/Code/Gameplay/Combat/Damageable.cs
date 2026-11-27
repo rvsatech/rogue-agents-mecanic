@@ -24,6 +24,7 @@ namespace Rogue.Gameplay
         public float Health { get; private set; }
         public float MaxHealth => maxHealth;
         public bool IsAlive => Health > 0f;
+        public HitSurface Surface => HitSurface.Target;
 
         private void Awake()
         {

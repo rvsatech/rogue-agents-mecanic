@@ -51,6 +51,22 @@ namespace Rogue.Gameplay
 
         public float damage = 20f;
 
+        [Header("Munição (só armas de tiro)")]
+        [Tooltip("Balas no pente.")]
+        public int magazineSize = 30;
+
+        [Tooltip("Balas de reserva (fora do pente).")]
+        public int reserveAmmo = 120;
+
+        [Tooltip("Reserva infinita (bom para testar).")]
+        public bool infiniteReserve = false;
+
+        [Tooltip("Segundos para recarregar.")]
+        public float reloadTime = 2f;
+
+        [Tooltip("Recarrega sozinho quando o pente esvazia.")]
+        public bool autoReloadWhenEmpty = true;
+
         [Header("Tiro (hitscan)")]
         [Tooltip("Alcance máximo em metros.")]
         public float range = 150f;
@@ -94,5 +110,27 @@ namespace Rogue.Gameplay
 
         [Tooltip("Quanto tempo o clarão do cano fica aceso.")]
         public float muzzleFlashDuration = 0.04f;
+
+        [Header("Sons (o menu Rogue preenche; dá para trocar aqui)")]
+        public SoundCue fireSound = new SoundCue();
+        public SoundCue equipSound = new SoundCue();
+        [Tooltip("Clique sem bala nenhuma.")]
+        public SoundCue dryFireSound = new SoundCue();
+        [Tooltip("Recarga: tirando o pente.")]
+        public SoundCue reloadOutSound = new SoundCue();
+        [Tooltip("Recarga: pondo o pente.")]
+        public SoundCue reloadInSound = new SoundCue();
+        [Tooltip("Recarga: engatilhando / soltando o ferrolho.")]
+        public SoundCue reloadRackSound = new SoundCue();
+        [Tooltip("Faca: golpe no ar.")]
+        public SoundCue swingSound = new SoundCue();
+        [Tooltip("Faca: acertou algo.")]
+        public SoundCue meleeHitSound = new SoundCue();
+
+        [HideInInspector]
+        [Tooltip("Versão dos valores padrão já aplicados (o menu Rogue atualiza configs antigas).")]
+        public int defaultsVersion;
+
+        public bool UsesAmmo => kind == WeaponKind.Hitscan && magazineSize > 0;
     }
 }

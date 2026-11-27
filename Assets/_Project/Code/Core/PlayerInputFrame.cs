@@ -32,8 +32,14 @@ namespace Rogue.Core
         /// <summary>Ctrl esquerdo: deitar / levantar.</summary>
         public bool ProneTogglePressed;
 
-        /// <summary>C: slide.</summary>
+        /// <summary>C apertado: começa o slide (se estiver rápido o bastante).</summary>
         public bool SlidePressed;
+
+        /// <summary>C segurado: o slide continua enquanto segura; soltar para o slide.</summary>
+        public bool SlideHeld;
+
+        /// <summary>R: recarregar.</summary>
+        public bool ReloadPressed;
 
         /// <summary>Alt (toque): cambalhota.</summary>
         public bool RollPressed;

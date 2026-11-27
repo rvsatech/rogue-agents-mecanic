@@ -13,8 +13,8 @@ namespace Rogue.Gameplay
     ///
     /// Teclas:
     ///   WASD mover · Espaço pular · Shift agachar (segurar) · Shift + Espaço perto da parede = wall run
-    ///   Ctrl deitar/levantar · C slide · Alt cambalhota
-    ///   1 rifle · 2 pistola · 3 faca · 4 gelo · Q troca rápida
+    ///   Ctrl deitar/levantar · C slide (segurar) · Alt cambalhota
+    ///   1 rifle · 2 pistola · 3 faca · 4 gelo · Q troca rápida · R recarregar
     ///   Botão esquerdo atirar/usar · Botão direito mirar
     /// </summary>
     [DefaultExecutionOrder(-100)]
@@ -42,6 +42,7 @@ namespace Rogue.Gameplay
         private InputAction weapon3;
         private InputAction weapon4;
         private InputAction quickSwitch;
+        private InputAction reload;
         private InputAction[] allActions;
 
         private bool jumpLatch;
@@ -54,6 +55,7 @@ namespace Rogue.Gameplay
         private bool weapon3Latch;
         private bool weapon4Latch;
         private bool quickSwitchLatch;
+        private bool reloadLatch;
 
         public float Yaw { get; private set; }
         public float Pitch { get; private set; }
@@ -82,11 +84,12 @@ namespace Rogue.Gameplay
             weapon3 = new InputAction("Weapon3", InputActionType.Button, "<Keyboard>/3");
             weapon4 = new InputAction("Weapon4", InputActionType.Button, "<Keyboard>/4");
             quickSwitch = new InputAction("QuickSwitch", InputActionType.Button, "<Keyboard>/q");
+            reload = new InputAction("Reload", InputActionType.Button, "<Keyboard>/r");
 
             allActions = new[]
             {
                 move, look, jump, crouch, wallRun, prone, slide, roll, fire, aim,
-                weapon1, weapon2, weapon3, weapon4, quickSwitch
+                weapon1, weapon2, weapon3, weapon4, quickSwitch, reload
             };
 
             Yaw = transform.eulerAngles.y;
@@ -133,6 +136,7 @@ namespace Rogue.Gameplay
             if (weapon3.WasPressedThisFrame()) weapon3Latch = true;
             if (weapon4.WasPressedThisFrame()) weapon4Latch = true;
             if (quickSwitch.WasPressedThisFrame()) quickSwitchLatch = true;
+            if (reload.WasPressedThisFrame()) reloadLatch = true;
         }
 
         /// <summary>Entrega os comandos para o tick atual e limpa os "apertou".</summary>
@@ -149,6 +153,8 @@ namespace Rogue.Gameplay
                 WallRunHeld = wallRun.IsPressed(),
                 ProneTogglePressed = proneLatch,
                 SlidePressed = slideLatch,
+                SlideHeld = slide.IsPressed(),
+                ReloadPressed = reloadLatch,
                 RollPressed = rollLatch,
                 FireHeld = fire.IsPressed() && Cursor.lockState == CursorLockMode.Locked,
                 FirePressed = fireLatch,
@@ -161,7 +167,7 @@ namespace Rogue.Gameplay
             };
 
             jumpLatch = proneLatch = slideLatch = rollLatch = fireLatch = false;
-            weapon1Latch = weapon2Latch = weapon3Latch = weapon4Latch = quickSwitchLatch = false;
+            weapon1Latch = weapon2Latch = weapon3Latch = weapon4Latch = quickSwitchLatch = reloadLatch = false;
             return frame;
         }
 

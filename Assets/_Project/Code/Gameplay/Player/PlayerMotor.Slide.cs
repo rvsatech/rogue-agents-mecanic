@@ -4,9 +4,10 @@ using UnityEngine;
 namespace Rogue.Gameplay
 {
     /// <summary>
-    /// Slide curto (C): desliza na direção das teclas no momento do aperto.
+    /// Slide (SEGURAR C): desliza na direção das teclas no momento do aperto, enquanto o C estiver
+    /// segurado. Soltar o C para o slide na hora. Segurando até o fim, termina agachado.
     /// Depois que começa, a direção fica travada (girar a câmera não muda o slide).
-    /// A velocidade começa alta e cai até a velocidade de agachado, percorrendo slideDistance.
+    /// A velocidade começa alta e cai até a de agachado; o máximo é slideDistance.
     /// Pulo cancela o slide na hora, mantendo o embalo.
     /// Dá para atirar deslizando: o tronco vira para a mira e as pernas continuam na direção do slide.
     /// </summary>
@@ -19,7 +20,8 @@ namespace Rogue.Gameplay
             else if (flat.sqrMagnitude > 0.25f) direction = flat.normalized;
             else direction = YawForward(frame);
 
-            float startSpeed = Mathf.Max(flat.magnitude, config.runSpeed * WeaponSpeedMultiplier) * config.slideSpeedBoost;
+            // Acabou de levantar do chão: o impulso mínimo também está reduzido (GetUpSpeedFactor).
+            float startSpeed = Mathf.Max(flat.magnitude, config.runSpeed * WeaponSpeedMultiplier * GetUpSpeedFactor) * config.slideSpeedBoost;
             float endSpeed = config.crouchSpeed * WeaponSpeedMultiplier;
             float distance = Mathf.Max(0.1f, config.slideDistance);
 
@@ -37,6 +39,14 @@ namespace Rogue.Gameplay
         {
             // Pulo cancela o slide na hora (sem delay), mantendo o embalo.
             if (state.JumpBufferTimer > 0f && state.Grounded)
+            {
+                EndSlide();
+                SimulateLocomotion(frame, dt);
+                return;
+            }
+
+            // Soltou o C: o slide para na hora.
+            if (!frame.SlideHeld)
             {
                 EndSlide();
                 SimulateLocomotion(frame, dt);

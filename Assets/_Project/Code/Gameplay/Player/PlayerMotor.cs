@@ -114,6 +114,7 @@ namespace Rogue.Gameplay
                 : Mathf.Max(0f, state.RollBufferTimer - dt);
             state.WallRunCooldown = Mathf.Max(0f, state.WallRunCooldown - dt);
             state.LedgeCooldown = Mathf.Max(0f, state.LedgeCooldown - dt);
+            state.GetUpTimer = Mathf.Max(0f, state.GetUpTimer - dt);
 
             // A janela do bhop acabou com o pé no chão: perde o bônus.
             if (state.Mode == MotorMode.Locomotion && state.Grounded &&
@@ -169,6 +170,25 @@ namespace Rogue.Gameplay
         private bool IsNonClimbable(Collider collider)
         {
             return collider != null && (config.nonClimbableMask.value & (1 << collider.gameObject.layer)) != 0;
+        }
+
+        /// <summary>
+        /// Depois de levantar do chão: começa devagar (getUpStartSpeedFactor) e volta ao normal
+        /// em getUpRecoveryTime (2 s). 1 = velocidade normal.
+        /// </summary>
+        public float GetUpSpeedFactor
+        {
+            get
+            {
+                if (config == null || state.GetUpTimer <= 0f || config.getUpRecoveryTime <= 0f) return 1f;
+                float recovered = 1f - state.GetUpTimer / config.getUpRecoveryTime;
+                return Mathf.Lerp(config.getUpStartSpeedFactor, 1f, recovered);
+            }
+        }
+
+        private bool IsNoWallRun(Collider collider)
+        {
+            return collider != null && (config.noWallRunMask.value & (1 << collider.gameObject.layer)) != 0;
         }
 
         private void ApplyHeight(float height)

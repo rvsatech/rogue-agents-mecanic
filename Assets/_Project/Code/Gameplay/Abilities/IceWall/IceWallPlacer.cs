@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -9,10 +10,11 @@ namespace Rogue.Gameplay
     /// - Com o gelo na mão, mostra uma PRÉVIA TRANSPARENTE onde a barreira vai aparecer
     ///   (azul = pode colocar, vermelha = não pode).
     /// - Alcance: rangeInSlides x distância do slide (padrão 2 slides).
-    /// - Altura: o limite que o personagem consegue escalar. Largura e curva no IceWallConfig.
+    /// - Altura 2,3 m (dá para escalar). Vida = meio pente do rifle. Largura e curva no IceWallConfig.
     /// - A barreira é levemente curvada para dentro (lado côncavo virado para quem colocou),
     ///   protegendo também de tiros pelos lados.
     /// - Barreiras ficam num pool (reaproveitadas), no máximo maxActiveWalls ao mesmo tempo.
+    /// - Ao quebrar (tiro ou 1 minuto), solta pedaços de gelo (IceShatter).
     /// </summary>
     [DefaultExecutionOrder(200)] // depois da câmera: a prévia usa a posição final da câmera no frame
     public sealed class IceWallPlacer : MonoBehaviour
@@ -27,6 +29,7 @@ namespace Rogue.Gameplay
 
         private readonly List<IceWall> activeWalls = new List<IceWall>();
         private readonly Stack<IceWall> pool = new Stack<IceWall>();
+        private IceShatter shatter;
 
         private bool hasPlacement;
         private bool placementValid;
@@ -36,6 +39,12 @@ namespace Rogue.Gameplay
         private float nextPlaceTime;
         private int wallLayer;
 
+        /// <summary>Barreira colocada (posição no chão). Para sons/efeitos.</summary>
+        public event Action<Vector3> WallPlaced;
+
+        /// <summary>Barreira quebrou (tiro ou tempo). Posição no meio da barreira.</summary>
+        public event Action<Vector3> WallBroken;
+
         /// <summary>Ligado pelo PlayerWeapons quando o gelo está na mão.</summary>
         public bool PreviewActive { get; set; }
 
@@ -44,22 +53,24 @@ namespace Rogue.Gameplay
         public int ActiveCount => activeWalls.Count;
         public IceWallConfig Config => config;
         public float CooldownRemaining => Mathf.Max(0f, nextPlaceTime - Time.time);
+        /// <summary>Segundos até a barreira mais antiga quebrar sozinha (0 = nenhuma).</summary>
+        public float OldestWallTimeLeft => activeWalls.Count > 0 ? activeWalls[0].TimeLeft : 0f;
 
         /// <summary>Alcance máximo em metros (2 slides por padrão).</summary>
         public float MaxRange => config != null && motor != null && motor.Config != null
             ? config.rangeInSlides * motor.Config.slideDistance
             : 10f;
 
-        /// <summary>Altura = limite de escalada do personagem.</summary>
-        public float WallHeight => motor != null && motor.Config != null && config != null
-            ? motor.Config.MaxClimbHeight + config.extraHeight
-            : 3.3f;
+        /// <summary>Altura da barreira (do IceWallConfig).</summary>
+        public float WallHeight => config != null ? Mathf.Max(0.5f, config.height) : 2.3f;
 
         private void Awake()
         {
             if (aimCamera == null) aimCamera = Camera.main;
 
-            wallLayer = LayerMask.NameToLayer("NonClimbable");
+            // Layer própria: dá para escalar, mas não para correr na parede.
+            wallLayer = LayerMask.NameToLayer("IceWall");
+            if (wallLayer < 0) wallLayer = LayerMask.NameToLayer("NonClimbable");
             if (wallLayer < 0) wallLayer = 0;
 
             if (config != null && motor != null)
@@ -68,6 +79,10 @@ namespace Rogue.Gameplay
                 preview = previewObject.transform;
                 previewRenderers = previewObject.GetComponentsInChildren<Renderer>(true);
                 previewObject.SetActive(false);
+
+                var shatterObject = new GameObject("IceWall_Pedacos");
+                shatter = shatterObject.AddComponent<IceShatter>();
+                shatter.Init(config.wallMaterial);
             }
         }
 
@@ -105,8 +120,9 @@ namespace Rogue.Gameplay
             IceWall wall = GetWall();
             wall.transform.SetPositionAndRotation(placementPosition, placementRotation);
             Color color = config.wallMaterial != null ? config.wallMaterial.color : new Color(0.6f, 0.9f, 1f);
-            wall.Activate(config.health, config.lifetime, color);
+            wall.Activate(config.MaxHealth, config.lifetime, color);
             activeWalls.Add(wall);
+            WallPlaced?.Invoke(placementPosition);
 
             // Passou do máximo: a mais antiga quebra.
             while (activeWalls.Count > Mathf.Max(1, config.maxActiveWalls))
@@ -183,6 +199,8 @@ namespace Rogue.Gameplay
         {
             activeWalls.Remove(wall);
             pool.Push(wall);
+            if (shatter != null) shatter.Play(wall);
+            WallBroken?.Invoke(wall.transform.position + Vector3.up * (WallHeight * 0.5f));
         }
 
         /// <summary>

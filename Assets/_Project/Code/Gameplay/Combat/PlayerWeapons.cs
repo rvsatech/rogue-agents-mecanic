@@ -24,6 +24,9 @@ namespace Rogue.Gameplay
         [Tooltip("Ponto onde a mão esquerda segura (armas de duas mãos).")]
         public Transform supportGrip;
 
+        [Tooltip("Carregador (peça que sai na mão esquerda ao recarregar). Opcional.")]
+        public Transform magazine;
+
         public bool IsValid => config != null && model != null;
     }
 
@@ -31,6 +34,8 @@ namespace Rogue.Gameplay
     /// Armas do jogador: 1 rifle, 2 pistola, 3 faca (karambit), 4 gelo. Q volta para a arma anterior.
     /// - Sacar leva equipTime (não ataca enquanto isso).
     /// - Rifle: automático (segura o botão). Pistola: um tiro por clique. Faca: golpe por clique.
+    /// - Armas de tiro têm pente e reserva; R recarrega; pente vazio recarrega sozinho.
+    ///   Trocar de arma cancela a recarga; pendurado/subindo também.
     /// - Gelo: mostra a prévia transparente; clique coloca a barreira.
     /// - A arma na mão muda a velocidade (faca +15%, pistola +10%) e atirar correndo no chão tira 20%.
     /// - Não ataca pendurado, subindo, rolando ou sacando. Ataca correndo, pulando, agachado,
@@ -67,6 +72,11 @@ namespace Rogue.Gameplay
         private float attackTimer;
         private float attackDuration;
         private bool meleeHitPending;
+        private int[] magazine;
+        private int[] reserve;
+        private float reloadTimer;
+        private float reloadDuration;
+        private int reloadSlot = -1;
         private float flashTimer;
         private GameObject activeFlash;
         private ObjectPool<LineRenderer> tracerPool;
@@ -86,6 +96,36 @@ namespace Rogue.Gameplay
         /// <summary>0 = começo do golpe, 1 = fim.</summary>
         public float MeleeProgress => attackDuration <= 0f ? 1f : 1f - Mathf.Clamp01(attackTimer / attackDuration);
         public int MeleeAttackCount { get; private set; }
+
+        // ===== Eventos (sons/efeitos escutam; a lógica do jogo não depende deles) =====
+        /// <summary>Atirou (arma, posição do cano).</summary>
+        public event Action<WeaponConfig, Vector3> Fired;
+        /// <summary>Tentou atirar sem bala nenhuma (clique seco).</summary>
+        public event Action<WeaponConfig> DryFired;
+        /// <summary>Começou a sacar uma arma.</summary>
+        public event Action<WeaponConfig> Equipped;
+        /// <summary>Golpe da faca começou.</summary>
+        public event Action<WeaponConfig> MeleeSwung;
+        /// <summary>Tiro ou faca acertou algo.</summary>
+        public event Action<WeaponHitInfo> Hit;
+
+        /// <summary>Zoom do botão direito: só com arma de fogo na mão (faca e gelo não).</summary>
+        public bool CanAimZoom
+        {
+            get
+            {
+                WeaponConfig cfg = CurrentConfig;
+                return cfg != null && cfg.kind == WeaponKind.Hitscan;
+            }
+        }
+
+        public bool IsReloading => reloadTimer > 0f;
+        /// <summary>0 = começou a recarregar, 1 = terminou.</summary>
+        public float ReloadProgress => reloadDuration <= 0f ? 0f : 1f - Mathf.Clamp01(reloadTimer / reloadDuration);
+        public float ReloadTimeLeft => Mathf.Max(0f, reloadTimer);
+
+        public int GetMagazine(int slot) => magazine != null && slot >= 0 && slot < magazine.Length ? magazine[slot] : 0;
+        public int GetReserve(int slot) => reserve != null && slot >= 0 && slot < reserve.Length ? reserve[slot] : 0;
 
         public float LastShotTime { get; private set; } = -999f;
         public float LastHitTime { get; private set; } = -999f;
@@ -118,6 +158,17 @@ namespace Rogue.Gameplay
                 defaultCapacity: 16,
                 maxSize: 64);
 
+            // Pentes cheios no começo.
+            magazine = new int[SlotCount];
+            reserve = new int[SlotCount];
+            for (int i = 0; i < SlotCount; i++)
+            {
+                WeaponBinding binding = slots[i];
+                if (binding == null || !binding.IsValid || !binding.config.UsesAmmo) continue;
+                magazine[i] = binding.config.magazineSize;
+                reserve[i] = Mathf.Max(0, binding.config.reserveAmmo);
+            }
+
             currentSlot = FirstValidSlot(0);
             previousSlot = FirstValidSlot(1);
             if (previousSlot == currentSlot) previousSlot = FirstValidSlot(currentSlot + 1);
@@ -145,6 +196,12 @@ namespace Rogue.Gameplay
 
             equipTimer = Mathf.Max(0f, equipTimer - dt);
             UpdateMelee(dt);
+            UpdateReload(dt);
+
+            // Mãos na beirada: cancela a recarga.
+            MotorMode mode = motor.State.Mode;
+            if (mode == MotorMode.LedgeHang || mode == MotorMode.LedgeClimb)
+                CancelReload();
 
             WeaponBinding current = Current;
             WeaponConfig cfg = current != null && current.IsValid ? current.config : null;
@@ -158,27 +215,49 @@ namespace Rogue.Gameplay
                 switch (cfg.kind)
                 {
                     case WeaponKind.Hitscan:
+                    {
+                        if (input.ReloadPressed && HandsFree() && equipTimer <= 0f)
+                            StartReload();
+
+                        bool wantsFire = cfg.automatic ? input.FireHeld : input.FirePressed;
+                        bool canShoot = canAct && !IsReloading;
+
                         if (cfg.automatic)
                         {
                             cooldown -= dt;
-                            if (!input.FireHeld && cooldown < 0f) cooldown = 0f;
-                            if (canAct && input.FireHeld && cooldown <= 0f)
-                            {
-                                FireHitscan(current);
-                                cooldown += interval;
-                            }
+                            // Só guarda o "resto" do tempo se for atirar agora
+                            // (senão, depois de recarregar/sacar segurando o botão, sairia uma rajada).
+                            bool firingNow = canShoot && wantsFire && magazine[currentSlot] > 0;
+                            if (!firingNow && cooldown < 0f) cooldown = 0f;
                         }
                         else
                         {
                             cooldown = Mathf.Max(0f, cooldown - dt);
-                            if (canAct && input.FirePressed && cooldown <= 0f)
+                        }
+
+                        if (canShoot && wantsFire && cooldown <= 0f)
+                        {
+                            if (magazine[currentSlot] > 0)
                             {
                                 FireHitscan(current);
-                                cooldown = interval;
+                                magazine[currentSlot]--;
+                                if (cfg.automatic) cooldown += interval;
+                                else cooldown = interval;
+
+                                if (magazine[currentSlot] == 0 && cfg.autoReloadWhenEmpty)
+                                    StartReload();
+                            }
+                            else
+                            {
+                                // Pente vazio: recarrega. Sem reserva: só o clique seco.
+                                if (!StartReload() && input.FirePressed)
+                                    DryFired?.Invoke(cfg);
                             }
                         }
-                        firingGun = canAct && input.FireHeld;
+
+                        firingGun = canShoot && input.FireHeld && magazine[currentSlot] > 0;
                         break;
+                    }
 
                     case WeaponKind.Melee:
                         cooldown = Mathf.Max(0f, cooldown - dt);
@@ -260,7 +339,52 @@ namespace Rogue.Gameplay
             attackTimer = 0f;
             meleeHitPending = false;
             cooldown = 0f;
+            CancelReload();
             HideFlash();
+
+            if (cfg != null) Equipped?.Invoke(cfg);
+        }
+
+        // ================= Recarga =================
+
+        /// <summary>Começa a recarregar. Retorna false se não precisa ou não dá (pente cheio / sem reserva).</summary>
+        private bool StartReload()
+        {
+            WeaponConfig cfg = CurrentConfig;
+            if (cfg == null || !cfg.UsesAmmo || IsReloading) return false;
+            if (magazine[currentSlot] >= cfg.magazineSize) return false;           // pente cheio
+            if (!cfg.infiniteReserve && reserve[currentSlot] <= 0) return false;    // sem reserva
+
+            reloadSlot = currentSlot;
+            reloadDuration = Mathf.Max(0.05f, cfg.reloadTime);
+            reloadTimer = reloadDuration;
+            cooldown = 0f;
+            return true;
+        }
+
+        private void UpdateReload(float dt)
+        {
+            if (reloadTimer <= 0f) return;
+            reloadTimer -= dt;
+            if (reloadTimer <= 0f) FinishReload();
+        }
+
+        private void FinishReload()
+        {
+            reloadTimer = 0f;
+            WeaponBinding binding = GetSlot(reloadSlot);
+            if (binding == null || !binding.IsValid) return;
+
+            WeaponConfig cfg = binding.config;
+            int needed = cfg.magazineSize - magazine[reloadSlot];
+            int taken = cfg.infiniteReserve ? needed : Mathf.Min(needed, reserve[reloadSlot]);
+            magazine[reloadSlot] += taken;
+            if (!cfg.infiniteReserve) reserve[reloadSlot] -= taken;
+        }
+
+        private void CancelReload()
+        {
+            reloadTimer = 0f;
         }
 
         private bool HandsFree()
@@ -326,11 +450,14 @@ namespace Rogue.Gameplay
             {
                 end = hit.point;
                 IDamageable target = hit.collider.GetComponentInParent<IDamageable>();
+                HitSurface surface = HitSurface.Generic;
                 if (target != null && target.IsAlive)
                 {
+                    surface = target.Surface;
                     target.TakeDamage(cfg.damage);
                     LastHitTime = Time.time;
                 }
+                Hit?.Invoke(new WeaponHitInfo { Weapon = cfg, Point = hit.point, Surface = surface, Melee = false });
             }
 
             SpawnTracer(muzzlePosition, end, cfg);
@@ -345,6 +472,7 @@ namespace Rogue.Gameplay
 
             LastShotTime = Time.time;
             LastActionTime = Time.time;
+            Fired?.Invoke(cfg, muzzlePosition);
         }
 
         private static Vector3 ApplySpread(Vector3 direction, float degrees)
@@ -364,6 +492,7 @@ namespace Rogue.Gameplay
             meleeHitPending = true;
             MeleeAttackCount++;
             LastActionTime = Time.time;
+            MeleeSwung?.Invoke(cfg);
         }
 
         private void UpdateMelee(float dt)
@@ -386,10 +515,14 @@ namespace Rogue.Gameplay
             Vector3 origin = motor.transform.position + Vector3.up * (motor.State.Height * 0.75f);
             Vector3 direction = AimDirection();
             IDamageable target = null;
+            bool touched = false;
+            Vector3 point = origin + direction * cfg.meleeRange;
 
             if (Physics.SphereCast(origin, cfg.meleeRadius, direction, out RaycastHit hit, cfg.meleeRange,
                     cfg.hitMask, QueryTriggerInteraction.Ignore))
             {
+                touched = true;
+                point = hit.point;
                 target = hit.collider.GetComponentInParent<IDamageable>();
             }
 
@@ -404,6 +537,8 @@ namespace Rogue.Gameplay
                     if (candidate != null && candidate.IsAlive)
                     {
                         target = candidate;
+                        touched = true;
+                        point = OverlapBuffer[i].ClosestPoint(origin);
                         break;
                     }
                 }
@@ -411,8 +546,14 @@ namespace Rogue.Gameplay
 
             if (target != null && target.IsAlive)
             {
+                HitSurface surface = target.Surface;
                 target.TakeDamage(cfg.damage);
                 LastHitTime = Time.time;
+                Hit?.Invoke(new WeaponHitInfo { Weapon = cfg, Point = point, Surface = surface, Melee = true });
+            }
+            else if (touched)
+            {
+                Hit?.Invoke(new WeaponHitInfo { Weapon = cfg, Point = point, Surface = HitSurface.Generic, Melee = true });
             }
         }
 

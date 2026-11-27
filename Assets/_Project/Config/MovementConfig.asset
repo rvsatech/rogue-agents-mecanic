@@ -23,7 +23,6 @@ MonoBehaviour:
   groundAcceleration: 90
   groundDeceleration: 110
   groundStickForce: 2
-  shootingRunSpeedPenalty: 0.2
   gravity: 28
   jumpHeight: 1.25
   maxFallSpeed: 40
@@ -40,16 +39,24 @@ MonoBehaviour:
   crouchHeight: 1.1
   crouchSpeed: 3.2
   heightChangeSpeed: 8
-  slideDistance: 1
+  proneHeight: 0.7
+  proneSpeed: 1.3
+  slideDistance: 6
   slideSpeedBoost: 1.15
   slideCooldown: 0.35
-  wallRunDuration: 2
+  rollDistance: 3.5
+  rollDuration: 0.6
+  rollEndSpeedFactor: 0.5
+  rollCooldown: 0.5
+  rollBufferTime: 0.15
+  rollJumpCancelTime: 0.35
+  wallRunDuration: 3
   wallRunDetectDistance: 0.6
   wallRunSpeedFactor: 1
   wallRunEntryUpSpeed: 3
   wallRunRiseGravity: 6
-  wallRunSinkGravity: 1.5
-  wallRunMaxSinkSpeed: 1.2
+  wallRunSinkGravity: 0.5
+  wallRunMaxSinkSpeed: 0.35
   wallStickSpeed: 1.5
   wallJumpHeight: 1.2
   wallJumpSpeedFactor: 1
@@ -66,3 +73,4 @@ MonoBehaviour:
   climbForwardSpeed: 3.5
   mantleSpeedMultiplier: 1.6
   ledgeRegrabCooldown: 0.4
+  defaultsVersion: 2

@@ -18,6 +18,7 @@ namespace Rogue.DebugTools
 
         private GUIStyle boxStyle;
         private GUIStyle crosshairStyle;
+        private GUIStyle ammoStyle;
         private float smoothedFps;
 
         private void Update()
@@ -44,6 +45,12 @@ namespace Rogue.DebugTools
                     fontSize = 22,
                     alignment = TextAnchor.MiddleCenter
                 };
+                ammoStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 34,
+                    alignment = TextAnchor.LowerRight,
+                    richText = true
+                };
             }
 
             PlayerSimState s = motor.State;
@@ -65,7 +72,9 @@ namespace Rogue.DebugTools
             else if (s.Mode == MotorMode.LedgeClimb)
                 modeLine = $"<b>Subindo:</b> fase {s.ClimbPhase + 1}/2" + (s.QuickMantle ? " (rápido)" : "") + "\n";
             else if (s.Prone)
-                modeLine = "<b>Deitado:</b> Ctrl ou Espaço levanta\n";
+                modeLine = "<b>Deitado (de costas):</b> Ctrl ou Espaço levanta\n";
+            else if (motor.GetUpSpeedFactor < 0.999f)
+                modeLine = $"<b>Levantando:</b> velocidade {motor.GetUpSpeedFactor * 100f:0}% (normal em {s.GetUpTimer:0.0} s)\n";
 
             string text =
                 $"<b>Estado:</b> {s.Id}\n" +
@@ -77,7 +86,7 @@ namespace Rogue.DebugTools
                 WeaponLine() +
                 $"<b>FPS:</b> {smoothedFps:0}   <b>Tick:</b> {1f / Time.fixedDeltaTime:0} Hz";
 
-            GUI.Box(new Rect(10, 10, 420, 230), text, boxStyle);
+            GUI.Box(new Rect(10, 10, 440, 250), text, boxStyle);
 
             // Mira no centro da tela. Fica vermelha e vira "x" por um instante quando acerta algo.
             bool recentHit = weapons != null && Time.time - weapons.LastHitTime < 0.12f;
@@ -86,20 +95,59 @@ namespace Rogue.DebugTools
             GUI.Label(new Rect(Screen.width * 0.5f - 15, Screen.height * 0.5f - 15, 30, 30), recentHit ? "x" : "+", crosshairStyle);
             GUI.color = previousColor;
 
+            DrawAmmo();
+
             if (showControls)
             {
                 const string controls =
                     "<b>Controles</b>\n" +
-                    "WASD mover · Espaço pular · Shift agachar (segurar) · Ctrl deitar · C slide · Alt cambalhota\n" +
+                    "WASD mover · Espaço pular · Shift agachar (segurar) · Ctrl deitar · C slide (segurar) · Alt cambalhota\n" +
                     "Bhop: pule para frente e pule de novo até 0,5 s depois de tocar o chão\n" +
                     "No ar: qualquer tecla empurra para aquela direção\n" +
                     "Parede: Shift + Espaço perto da parede (3 s) · Espaço na parede = salto direcional\n" +
                     "Beirada: pule de frente para o bloco · Espaço sobe · Shift/S solta\n" +
-                    "1 rifle · 2 pistola · 3 karambit · 4 gelo · Q troca rápida\n" +
-                    "Botão esquerdo atira/golpeia/coloca o gelo · Botão direito mira\n" +
+                    "1 rifle · 2 pistola · 3 karambit · 4 gelo · Q troca rápida · R recarregar\n" +
+                    "Botão esquerdo atira/golpeia/coloca o gelo · Botão direito mira (zoom só no rifle/pistola)\n" +
                     "Esc solta o mouse · clique na tela para prender";
                 GUI.Box(new Rect(10, Screen.height - 215, 760, 205), controls, boxStyle);
             }
+        }
+
+        /// <summary>Contador de balas no canto inferior direito.</summary>
+        private void DrawAmmo()
+        {
+            if (weapons == null || weapons.CurrentConfig == null) return;
+
+            WeaponConfig cfg = weapons.CurrentConfig;
+            string text;
+            Color color = Color.white;
+
+            if (cfg.UsesAmmo)
+            {
+                int slot = weapons.CurrentSlot;
+                int magazine = weapons.GetMagazine(slot);
+                string reserve = cfg.infiniteReserve ? "∞" : weapons.GetReserve(slot).ToString();
+
+                if (weapons.IsReloading)
+                {
+                    text = $"{cfg.displayName}\n<size=22>RECARREGANDO {weapons.ReloadTimeLeft:0.0} s</size>";
+                }
+                else
+                {
+                    text = $"{cfg.displayName}\n{magazine} <size=22>/ {reserve}</size>";
+                    if (magazine == 0) color = Color.red;
+                    else if (magazine <= cfg.magazineSize / 4) color = Color.yellow;
+                }
+            }
+            else
+            {
+                text = cfg.displayName;
+            }
+
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.Label(new Rect(Screen.width - 340, Screen.height - 120, 320, 110), text, ammoStyle);
+            GUI.color = previous;
         }
 
         private string WeaponLine()
@@ -109,6 +157,7 @@ namespace Rogue.DebugTools
             WeaponConfig current = weapons.CurrentConfig;
             string line = $"<b>Arma:</b> [{SlotKeys[weapons.CurrentSlot]}] {current.displayName}";
             if (weapons.IsEquipping) line += " (sacando...)";
+            if (weapons.IsReloading) line += $" (recarregando {weapons.ReloadTimeLeft:0.0} s)";
 
             WeaponBinding previous = weapons.GetSlot(weapons.PreviousSlot);
             if (previous != null && previous.IsValid)
@@ -121,6 +170,9 @@ namespace Rogue.DebugTools
                 string where = ice.HasValidPlacement ? "pode colocar" : "lugar inválido";
                 line += $"<b>Gelo:</b> {where} · {ice.PlacementDistance:0.0}/{ice.MaxRange:0.0} m · ativos {ice.ActiveCount}/{(ice.Config != null ? ice.Config.maxActiveWalls : 0)}\n";
             }
+
+            if (weapons.IceWall != null && weapons.IceWall.ActiveCount > 0)
+                line += $"<b>Barreiras:</b> {weapons.IceWall.ActiveCount} · a mais antiga quebra em {weapons.IceWall.OldestWallTimeLeft:0} s\n";
 
             return line;
         }

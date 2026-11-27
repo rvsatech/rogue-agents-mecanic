@@ -59,8 +59,11 @@ namespace Rogue.Gameplay
 
         public bool Crouching;
 
-        /// <summary>Deitado de bruços (Ctrl).</summary>
+        /// <summary>Deitado de barriga para cima (Ctrl).</summary>
         public bool Prone;
+
+        /// <summary>Tempo restante do "levantando": velocidade reduzida que volta ao normal aos poucos.</summary>
+        public float GetUpTimer;
 
         /// <summary>Altura atual da cápsula.</summary>
         public float Height;

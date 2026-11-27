@@ -17,8 +17,11 @@ namespace Rogue.Gameplay
         [Tooltip("Com o que o personagem colide nas checagens (tudo menos a layer Player).")]
         public LayerMask environmentMask = ~0;
 
-        [Tooltip("Layers que NÃO podem ser escaladas nem usadas no wall run (ex.: barreira de gelo).")]
+        [Tooltip("Layers que NÃO podem ser escaladas nem usadas no wall run (ex.: bloco não escalável, alvos).")]
         public LayerMask nonClimbableMask = 0;
+
+        [Tooltip("Layers onde não dá para correr na parede (ex.: barreira de gelo), mas que podem ser escaladas.")]
+        public LayerMask noWallRunMask = 0;
 
         [Header("Chão")]
         [Tooltip("Velocidade de corrida normal, em metros por segundo.")]
@@ -87,9 +90,18 @@ namespace Rogue.Gameplay
         [Tooltip("Velocidade rastejando deitado.")]
         public float proneSpeed = 1.3f;
 
-        [Header("Slide (C)")]
-        [Tooltip("Distância total do slide, em metros (6 = comprimento do túnel azul).")]
+        [Tooltip("Segundos, depois de levantar, até voltar à velocidade normal de corrida.")]
+        public float getUpRecoveryTime = 2f;
+
+        [Tooltip("Velocidade logo ao levantar, em relação à normal (0.35 = 35%). Sobe até 100% em getUpRecoveryTime.")]
+        [Range(0.1f, 1f)] public float getUpStartSpeedFactor = 0.35f;
+
+        [Header("Slide (segurar C)")]
+        [Tooltip("Distância máxima do slide segurando C, em metros (6 = comprimento do túnel azul). Soltar o C para antes.")]
         public float slideDistance = 6f;
+
+        [Tooltip("Velocidade mínima para começar a deslizar (abaixo disso o C só agacha).")]
+        public float slideMinSpeed = 3.5f;
 
         [Tooltip("Velocidade no início do slide em relação à velocidade atual (ou de corrida, se estiver parado).")]
         public float slideSpeedBoost = 1.15f;

@@ -4,8 +4,8 @@ namespace Rogue.Gameplay
 {
     /// <summary>
     /// Números da barreira de gelo (estilo gel do Free Fire).
-    /// A altura não fica aqui: é sempre o limite que o personagem consegue escalar
-    /// (pulo + alcance da mão, do MovementConfig) + extraHeight.
+    /// Ela é ESCALÁVEL (dá para pendurar e passar por cima), mas não serve para correr na parede.
+    /// A vida é medida em pentes de uma arma de referência (padrão: meio pente do rifle).
     /// </summary>
     [CreateAssetMenu(menuName = "Rogue/Config/Ice Wall", fileName = "IceWallConfig")]
     public sealed class IceWallConfig : ScriptableObject
@@ -14,8 +14,8 @@ namespace Rogue.Gameplay
         [Tooltip("Largura da barreira (comprimento da curva), em metros.")]
         public float width = 4f;
 
-        [Tooltip("Altura extra além do limite de escalada (0 = exatamente o limite).")]
-        public float extraHeight = 0f;
+        [Tooltip("Altura em metros. Precisa ser menor que o limite de escalada (~3,35 m) para o boneco conseguir subir.")]
+        public float height = 2.3f;
 
         [Tooltip("Espessura, em metros.")]
         public float thickness = 0.35f;
@@ -37,10 +37,17 @@ namespace Rogue.Gameplay
         public float maxGroundSlope = 35f;
 
         [Header("Vida e duração")]
-        public float health = 600f;
+        [Tooltip("Arma usada para medir a vida da barreira (padrão: rifle).")]
+        public WeaponConfig healthReferenceWeapon;
+
+        [Tooltip("Vida em pentes da arma de referência (0.5 = quebra com meio pente).")]
+        public float healthInMagazines = 0.5f;
+
+        [Tooltip("Vida usada só se não houver arma de referência.")]
+        public float health = 300f;
 
         [Tooltip("Segundos até a barreira sumir sozinha.")]
-        public float lifetime = 25f;
+        public float lifetime = 60f;
 
         [Tooltip("Máximo de barreiras ao mesmo tempo (a mais antiga some).")]
         public int maxActiveWalls = 3;
@@ -54,5 +61,20 @@ namespace Rogue.Gameplay
         public Material previewMaterial;
         [Tooltip("Prévia transparente (lugar inválido).")]
         public Material invalidPreviewMaterial;
+
+        [HideInInspector]
+        [Tooltip("Versão dos valores padrão já aplicados (o menu Rogue atualiza configs antigas).")]
+        public int defaultsVersion;
+
+        /// <summary>Vida final: dano da arma de referência x balas no pente x pentes.</summary>
+        public float MaxHealth
+        {
+            get
+            {
+                WeaponConfig weapon = healthReferenceWeapon;
+                if (weapon == null || weapon.magazineSize <= 0) return health;
+                return weapon.damage * weapon.magazineSize * healthInMagazines;
+            }
+        }
     }
 }

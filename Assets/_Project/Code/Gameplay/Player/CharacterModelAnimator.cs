@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Rogue.Core;
 using UnityEngine;
@@ -13,9 +14,11 @@ namespace Rogue.Gameplay
     ///    - Peito acompanha a mira para cima/baixo.
     ///    - Armas: a da mão (mirando ou abaixada) e as outras nos coldres
     ///      (rifle nas costas, pistola na coxa, faca na cintura, gelo no cinto).
-    ///    - IK dos braços: mãos na arma; golpe de faca em arco; mãos na beirada.
+    ///    - IK dos braços: mãos na arma; golpe de faca em arco; recarga (mão esquerda troca o
+    ///      carregador); mãos na beirada.
     ///    - Slide: quadril baixo, tronco para trás, perna da frente esticada.
-    ///    - Deitado: cabeça olhando para frente e corpo balançando ao rastejar.
+    ///    - Deitado (barriga para cima): cabeça levantada olhando para os pés/mira, arma sobre a barriga.
+    /// 3) Avisa os passos (evento Footstep) quando um pé encosta no chão — o som fica no ritmo da animação.
     /// Feito para o manequim da Universal Animation Library (Quaternius); os nomes das
     /// animações e dos ossos ficam no Inspector para trocar de modelo depois.
     /// </summary>
@@ -87,11 +90,28 @@ namespace Rogue.Gameplay
         [Tooltip("Quanto o tronco inclina para trás no slide (graus).")]
         [SerializeField] private float slideLeanBack = 22f;
 
-        [Tooltip("Quanto a cabeça levanta deitado para olhar para frente (graus).")]
-        [SerializeField] private float proneHeadPitch = 55f;
+        [Tooltip("Quanto a cabeça levanta deitado (de costas) para olhar para frente (graus).")]
+        [SerializeField] private float proneHeadPitch = 40f;
 
-        [Tooltip("Quanto a arma vai mais para frente deitado (metros).")]
-        [SerializeField] private float proneGunForward = 0.22f;
+        [Tooltip("Deitado de costas: quanto o peito levanta (graus), como quem olha para os pés.")]
+        [SerializeField] private float proneChestLift = 10f;
+
+        [Tooltip("Onde a arma fica deitado, em relação ao peito (direita, cima, frente): sobre a barriga.")]
+        [SerializeField] private Vector3 proneHoldOffset = new Vector3(0.05f, 0.3f, 0.2f);
+
+        [Header("Passos (som)")]
+        [Tooltip("O pé conta como 'no chão' abaixo desta altura (acima da altura dele apoiado), em metros.")]
+        [SerializeField] private float footContactHeight = 0.025f;
+
+        [Tooltip("Quanto o pé precisa subir para o próximo passo contar (metros).")]
+        [SerializeField] private float footLiftHeight = 0.05f;
+
+        /// <summary>Um pé encostou no chão (ou na parede). Usado pelos sons de passo.</summary>
+        public event Action<FootstepInfo> Footstep;
+
+        private float leftFootRest = 0.08f, rightFootRest = 0.08f;
+        private bool leftFootDown = true, rightFootDown = true;
+        private int wallStepIndex = int.MinValue;
 
         private Transform hips, spine, chest, neck;
         private Transform rUpper, rFore, rHand, lUpper, lFore, lHand;
@@ -104,6 +124,9 @@ namespace Rogue.Gameplay
         private float hangWeight;
         private float combatWeight;
         private float stowWeight;
+        private float reloadWeight;
+        private Vector3[] magazineRestPosition;
+        private Quaternion[] magazineRestRotation;
         private readonly HashSet<string> warnedClips = new HashSet<string>();
 
         private void Awake()
@@ -132,6 +155,21 @@ namespace Rogue.Gameplay
                 lThigh = Bone(bones, leftThighBone);
                 lShin = Bone(bones, leftShinBone);
                 lFoot = Bone(bones, leftFootBone);
+            }
+
+            // Altura do tornozelo apoiado (pose inicial, medida do pé do personagem); depois se ajusta sozinha.
+            if (lFoot != null) leftFootRest = Mathf.Clamp(lFoot.position.y - transform.position.y, 0.02f, 0.3f);
+            if (rFoot != null) rightFootRest = Mathf.Clamp(rFoot.position.y - transform.position.y, 0.02f, 0.3f);
+
+            // Posição original dos carregadores (voltam para lá depois da recarga).
+            magazineRestPosition = new Vector3[PlayerWeapons.SlotCount];
+            magazineRestRotation = new Quaternion[PlayerWeapons.SlotCount];
+            for (int i = 0; i < PlayerWeapons.SlotCount; i++)
+            {
+                WeaponBinding binding = weapons != null ? weapons.GetSlot(i) : null;
+                if (binding == null || binding.magazine == null) continue;
+                magazineRestPosition[i] = binding.magazine.localPosition;
+                magazineRestRotation[i] = binding.magazine.localRotation;
             }
 
             if (animationComponent == null && model != null)
@@ -200,6 +238,8 @@ namespace Rogue.Gameplay
             hangWeight = Mathf.MoveTowards(hangWeight, hanging ? 1f : 0f, dt / 0.1f);
             combatWeight = Mathf.MoveTowards(combatWeight, combat ? 1f : 0f, dt / 0.1f);
             stowWeight = Mathf.MoveTowards(stowWeight, hanging || rolling ? 1f : 0f, dt / 0.1f);
+            bool reloading = weapons != null && weapons.IsReloading;
+            reloadWeight = Mathf.MoveTowards(reloadWeight, reloading ? 1f : 0f, dt / 0.12f);
 
             if (animationComponent == null)
             {
@@ -319,27 +359,98 @@ namespace Rogue.Gameplay
                 }
             }
 
-            // Deitado: corpo balança ao rastejar e a cabeça levanta para olhar para frente.
+            // Deitado de costas: corpo balança ao rastejar e a cabeça levanta para olhar para frente.
             if (proneWeight > 0f)
             {
                 if (hips != null && s.HorizontalSpeed > 0.2f)
                     hips.rotation = Quaternion.AngleAxis(Mathf.Sin(Time.time * 7f) * 6f * proneWeight, up) * hips.rotation;
                 if (neck != null)
-                    neck.rotation = Quaternion.AngleAxis(-proneHeadPitch * proneWeight, right) * neck.rotation;
+                    neck.rotation = Quaternion.AngleAxis(proneHeadPitch * proneWeight, right) * neck.rotation;
             }
 
             // Deitado, a arma fica sempre apontada para frente.
             float holdWeight = Mathf.Max(combatWeight, proneWeight);
 
-            // Peito acompanha a mira (cima/baixo).
+            // Peito acompanha a mira (cima/baixo). Deitado de costas: o peito só levanta (nunca entra no chão).
             if (chest != null && holdWeight > 0f)
-                chest.rotation = Quaternion.AngleAxis(pitch * chestAimPitchFactor * holdWeight, right) * chest.rotation;
+            {
+                float chestAngle = pitch * chestAimPitchFactor * holdWeight;
+                if (proneWeight > 0f)
+                    chestAngle = Mathf.Lerp(chestAngle, proneChestLift + Mathf.Max(0f, chestAngle), proneWeight);
+                chest.rotation = Quaternion.AngleAxis(chestAngle, right) * chest.rotation;
+            }
 
             UpdateWeapons(s, aimDirection, forward, right, up, holdWeight, proneWeight);
 
             // Mãos na beirada (pendurado / subindo / soltando).
             if (hangWeight > 0f)
                 HandsOnLedge(s, up);
+
+            DetectFootsteps(s, root);
+        }
+
+        // ===================== Passos =====================
+
+        /// <summary>
+        /// No chão: um passo quando o pé desce e encosta (depois de ter subido).
+        /// Na parede: um passo a cada meio ciclo da animação de correr.
+        /// </summary>
+        private void DetectFootsteps(in PlayerSimState s, Vector3 root)
+        {
+            if (Footstep == null) return;
+
+            if (s.Mode == MotorMode.WallRun && animationComponent != null)
+            {
+                AnimationState run = animationComponent[wallRunClip];
+                if (run != null)
+                {
+                    int index = Mathf.FloorToInt(run.normalizedTime * 2f);
+                    if (wallStepIndex != int.MinValue && index != wallStepIndex)
+                    {
+                        Vector3 position = (index & 1) == 0 && lFoot != null ? lFoot.position
+                            : rFoot != null ? rFoot.position : root;
+                        Footstep(new FootstepInfo { Position = position, Speed = s.WallRunSpeed, OnWall = true });
+                    }
+                    wallStepIndex = index;
+                }
+                return;
+            }
+            wallStepIndex = int.MinValue;
+
+            bool walking = s.Mode == MotorMode.Locomotion && s.Grounded && !s.Prone && s.HorizontalSpeed > 0.5f;
+            if (!walking || lFoot == null || rFoot == null)
+            {
+                // Parado, no ar, deitado...: os pés contam como apoiados (o 1º passo vem depois de levantar o pé).
+                leftFootDown = true;
+                rightFootDown = true;
+                return;
+            }
+
+            float dt = Time.deltaTime;
+            CheckFoot(lFoot, ref leftFootDown, ref leftFootRest, root, s, dt);
+            CheckFoot(rFoot, ref rightFootDown, ref rightFootRest, root, s, dt);
+        }
+
+        private void CheckFoot(Transform foot, ref bool down, ref float rest, Vector3 root, in PlayerSimState s, float dt)
+        {
+            float height = foot.position.y - root.y;
+            rest = Mathf.Min(rest + 0.05f * dt, height); // aprende a altura do pé apoiado
+
+            if (down)
+            {
+                if (height > rest + footLiftHeight) down = false;
+            }
+            else if (height < rest + footContactHeight)
+            {
+                down = true;
+                Footstep?.Invoke(new FootstepInfo
+                {
+                    Position = foot.position,
+                    Speed = s.HorizontalSpeed,
+                    Crouching = s.Crouching,
+                    OnWall = false
+                });
+            }
         }
 
         // ===================== Armas =====================
@@ -353,6 +464,20 @@ namespace Rogue.Gameplay
             int current = weapons.CurrentSlot;
             float draw = Smooth01(weapons.EquipProgress);
             float inHand = draw * (1f - stowWeight);
+
+            // Carregadores no lugar (a recarga tira o da arma atual mais abaixo).
+            for (int i = 0; i < PlayerWeapons.SlotCount; i++)
+            {
+                WeaponBinding binding = weapons.GetSlot(i);
+                if (binding != null && binding.magazine != null)
+                    binding.magazine.SetLocalPositionAndRotation(magazineRestPosition[i], magazineRestRotation[i]);
+            }
+
+            // Recarregando: a arma vem para a frente do peito (mesmo sem estar mirando).
+            WeaponBinding equipped = weapons.Current;
+            bool isGun = equipped != null && equipped.IsValid && equipped.config.kind == WeaponKind.Hitscan;
+            float gunReload = isGun ? reloadWeight : 0f;
+            if (isGun) holdWeight = Mathf.Max(holdWeight, gunReload);
 
             // 1) Posiciona todas as armas: a atual na mão (sacando = vindo do coldre), as outras no coldre.
             for (int i = 0; i < PlayerWeapons.SlotCount; i++)
@@ -368,7 +493,7 @@ namespace Rogue.Gameplay
                     continue;
                 }
 
-                GetHandPose(binding, chestPosition, aimDirection, forward, up, holdWeight, proneWeight,
+                GetHandPose(binding, chestPosition, aimDirection, forward, up, holdWeight, proneWeight, gunReload,
                     out Vector3 handPosition, out Quaternion handRotation);
 
                 binding.model.SetPositionAndRotation(
@@ -389,13 +514,45 @@ namespace Rogue.Gameplay
             {
                 SolveRightArm(currentWeapon.model.position, aimDirection, right, up, armWeight);
                 if (currentWeapon.config.twoHanded && currentWeapon.supportGrip != null)
-                    SolveLeftArm(currentWeapon.supportGrip.position, right, up, armWeight);
+                {
+                    if (gunReload > 0f)
+                        ReloadLeftHand(currentWeapon, current, right, up, armWeight);
+                    else
+                        SolveLeftArm(currentWeapon.supportGrip.position, right, up, armWeight);
+                }
             }
+        }
+
+        /// <summary>
+        /// Recarga: a mão esquerda vai ao carregador, tira, leva até a cintura (troca),
+        /// volta, encaixa e retorna ao apoio da arma. O carregador acompanha a mão no meio do caminho.
+        /// </summary>
+        private void ReloadLeftHand(WeaponBinding weapon, int slot, Vector3 right, Vector3 up, float weight)
+        {
+            float p = weapons.ReloadProgress;
+            Vector3 grip = weapon.supportGrip.position;
+            Vector3 well = weapon.magazine != null
+                ? weapon.model.TransformPoint(magazineRestPosition[slot])
+                : grip - up * 0.08f;
+            Vector3 hipPosition = hips != null ? hips.position : transform.position + up * 0.9f;
+            Vector3 pouch = hipPosition - transform.right * 0.16f + transform.forward * 0.06f;
+
+            Vector3 target;
+            if (p < 0.25f) target = Vector3.Lerp(grip, well, p / 0.25f);
+            else if (p < 0.5f) target = Vector3.Lerp(well, pouch, (p - 0.25f) / 0.25f);
+            else if (p < 0.75f) target = Vector3.Lerp(pouch, well, (p - 0.5f) / 0.25f);
+            else target = Vector3.Lerp(well, grip, (p - 0.75f) / 0.25f);
+
+            SolveLeftArm(target, right, up, weight);
+
+            // Carregador na mão esquerda enquanto está fora da arma.
+            if (weapon.magazine != null && lHand != null && p > 0.25f && p < 0.75f)
+                weapon.magazine.position = lHand.position;
         }
 
         /// <summary>Pose da arma na mão: abaixada (seguindo a animação) ou mirando (na frente do peito).</summary>
         private void GetHandPose(WeaponBinding binding, Vector3 chestPosition, Vector3 aimDirection, Vector3 forward,
-            Vector3 up, float holdWeight, float proneWeight, out Vector3 position, out Quaternion rotation)
+            Vector3 up, float holdWeight, float proneWeight, float reload, out Vector3 position, out Quaternion rotation)
         {
             WeaponConfig cfg = binding.config;
 
@@ -405,8 +562,16 @@ namespace Rogue.Gameplay
                 : Quaternion.LookRotation((forward * 0.85f - up * 0.5f).normalized, up);
 
             Quaternion aimRotation = Quaternion.LookRotation(aimDirection, up);
-            Vector3 offset = Vector3.Lerp(cfg.aimHoldOffset, cfg.aimHoldOffset + new Vector3(0f, 0.08f, proneGunForward), proneWeight);
-            Vector3 aimPosition = chestPosition + aimRotation * offset;
+            Vector3 offset = Vector3.Lerp(cfg.aimHoldOffset, proneHoldOffset, proneWeight);
+
+            // Recarregando: arma inclinada (cano para baixo e de lado) e mais perto do corpo.
+            if (reload > 0f)
+            {
+                offset += new Vector3(-0.03f, -0.06f, -0.08f) * reload;
+                aimRotation *= Quaternion.Euler(28f * reload, 0f, -22f * reload);
+            }
+
+            Vector3 aimPosition = chestPosition + Quaternion.LookRotation(aimDirection, up) * offset;
 
             if (cfg.kind == WeaponKind.Hitscan)
             {

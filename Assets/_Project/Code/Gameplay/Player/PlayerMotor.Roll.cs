@@ -22,7 +22,8 @@ namespace Rogue.Gameplay
             float duration = Mathf.Max(0.1f, config.rollDuration);
             float endFactor = Mathf.Clamp(config.rollEndSpeedFactor, 0.1f, 1f);
             // Velocidade cai em linha reta: distância = média das velocidades x tempo.
-            float startSpeed = config.rollDistance / (duration * (1f + endFactor) * 0.5f);
+            // Acabou de levantar do chão: cambalhota mais curta (não vira atalho para fugir da lentidão).
+            float startSpeed = config.rollDistance / (duration * (1f + endFactor) * 0.5f) * GetUpSpeedFactor;
 
             state.Mode = MotorMode.Roll;
             state.RollDirection = direction;

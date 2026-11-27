@@ -45,16 +45,19 @@ namespace Rogue.Gameplay
                 return;
             }
 
-            // 4) C no chão = slide.
-            if (frame.SlidePressed && state.Grounded && state.SlideCooldown <= 0f)
+            // 4) C no chão = slide (precisa de velocidade). Segurar C ao aterrissar também desliza.
+            bool slideRequested = frame.SlidePressed ||
+                                  (frame.SlideHeld && state.TimeSinceLanded <= 0.05f);
+            if (slideRequested && state.Grounded && state.SlideCooldown <= 0f &&
+                flat.magnitude >= config.slideMinSpeed)
             {
                 StartSlide(frame, flat, wishDir);
                 SimulateSlide(frame, dt);
                 return;
             }
 
-            // 5) Agachar (Shift segurado, só no chão; no ar o Shift é usado para a parede).
-            UpdateCrouch(frame.CrouchHeld && state.Grounded, dt);
+            // 5) Agachar: Shift segurado (ou C segurado sem velocidade / depois do slide). Só no chão.
+            UpdateCrouch((frame.CrouchHeld || frame.SlideHeld) && state.Grounded, dt);
 
             // 6) Velocidade horizontal.
             flat = state.Grounded ? GroundMove(flat, wishDir, dt) : AirMove(frame, flat, dt);
@@ -112,6 +115,9 @@ namespace Rogue.Gameplay
 
             targetSpeed *= WeaponSpeedMultiplier; // faca +15%, pistola +10%
 
+            if (!state.Prone)
+                targetSpeed *= GetUpSpeedFactor;  // acabou de levantar: volta ao normal em 2 s
+
             bool hasInput = wishDir.sqrMagnitude > 0.0001f;
             float rate = hasInput ? config.groundAcceleration : config.groundDeceleration;
             return Vector3.MoveTowards(flat, wishDir * targetSpeed, rate * dt);
@@ -140,7 +146,7 @@ namespace Rogue.Gameplay
             Quaternion yaw = Quaternion.Euler(0f, frame.Yaw, 0f);
             Vector3 local = Quaternion.Inverse(yaw) * flat;
 
-            float axisSpeed = config.runSpeed * state.SpeedMultiplier * WeaponSpeedMultiplier;
+            float axisSpeed = config.runSpeed * state.SpeedMultiplier * WeaponSpeedMultiplier * GetUpSpeedFactor;
             float step = config.airStrafeAcceleration * dt;
 
             if (Mathf.Abs(move.x) > 0.01f)
@@ -205,8 +211,9 @@ namespace Rogue.Gameplay
         }
 
         /// <summary>
-        /// Deitado de bruços: rasteja devagar, dá para atirar (com mais precisão).
+        /// Deitado de barriga para cima: rasteja devagar, dá para atirar (com mais precisão).
         /// Ctrl ou Espaço levanta (vai para agachado e depois em pé, se houver espaço).
+        /// Ao levantar, fica mais lento e volta à velocidade normal em getUpRecoveryTime (2 s).
         /// </summary>
         private void SimulateProne(in PlayerInputFrame frame, Vector3 wishDir, float dt, bool justEntered)
         {
@@ -218,6 +225,7 @@ namespace Rogue.Gameplay
                 state.Prone = false;
                 state.Crouching = state.Grounded; // levanta passando pelo agachado
                 state.JumpBufferTimer = 0f;
+                if (state.Grounded) state.GetUpTimer = config.getUpRecoveryTime; // lento por 2 s
             }
             else
             {

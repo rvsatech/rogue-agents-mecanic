@@ -8,7 +8,7 @@ namespace Rogue.Gameplay
     /// corre na parede por até wallRunDuration (3 s). Solta o Shift ou acabou o tempo = cai.
     /// Espaço de novo na parede = salto direcional para onde as teclas apontam.
     /// Dá para atirar correndo na parede (o tiro não depende do modo).
-    /// Não funciona em superfícies NonClimbable (gelo) nem na mesma parede duas vezes sem tocar o chão.
+    /// Não funciona em superfícies NonClimbable nem na barreira de gelo, nem na mesma parede duas vezes sem tocar o chão.
     /// </summary>
     public sealed partial class PlayerMotor
     {
@@ -57,7 +57,8 @@ namespace Rogue.Gameplay
         private bool IsRunnableWall(in RaycastHit hit, Vector3 moveDirection, bool checkRepeat)
         {
             if (Mathf.Abs(hit.normal.y) > 0.3f) return false;   // precisa ser parede (quase vertical)
-            if (IsNonClimbable(hit.collider)) return false;     // gelo não
+            if (IsNonClimbable(hit.collider)) return false;     // bloco não escalável / alvos
+            if (IsNoWallRun(hit.collider)) return false;        // barreira de gelo
 
             Vector3 normal = Flat(hit.normal).normalized;
 
@@ -76,7 +77,7 @@ namespace Rogue.Gameplay
             Vector3 tangent = Vector3.Cross(normal, Vector3.up).normalized;
             if (Vector3.Dot(tangent, moveDirection) < 0f) tangent = -tangent;
 
-            float speed = Mathf.Max(Vector3.Dot(flat, tangent), config.runSpeed * config.wallRunSpeedFactor * WeaponSpeedMultiplier);
+            float speed = Mathf.Max(Vector3.Dot(flat, tangent), config.runSpeed * config.wallRunSpeedFactor * WeaponSpeedMultiplier * GetUpSpeedFactor);
 
             state.Mode = MotorMode.WallRun;
             state.WallNormal = normal;
@@ -186,7 +187,7 @@ namespace Rogue.Gameplay
                     direction = Flat(direction + normal * (config.wallJumpMinAwayFactor - away)).normalized;
             }
 
-            float speed = Mathf.Max(state.WallRunSpeed, config.runSpeed * state.SpeedMultiplier * WeaponSpeedMultiplier) * config.wallJumpSpeedFactor;
+            float speed = Mathf.Max(state.WallRunSpeed, config.runSpeed * state.SpeedMultiplier * WeaponSpeedMultiplier * GetUpSpeedFactor) * config.wallJumpSpeedFactor;
             Vector3 flat = direction * speed;
             float vy = Mathf.Sqrt(2f * config.gravity * config.wallJumpHeight);
 
