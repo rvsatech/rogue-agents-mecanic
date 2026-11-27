@@ -13,17 +13,20 @@ MonoBehaviour:
   m_Name: IceWallConfig
   m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.IceWallConfig
   width: 4
-  extraHeight: 0
+  height: 2.3
   thickness: 0.35
   curveDegrees: 40
   segments: 7
   rangeInSlides: 2
   minDistance: 1.6
   maxGroundSlope: 35
-  health: 600
-  lifetime: 25
+  healthReferenceWeapon: {fileID: 11400000, guid: 258b4bb2d413125458a15de1b7f8cf96, type: 2}
+  healthInMagazines: 0.5
+  health: 300
+  lifetime: 60
   maxActiveWalls: 3
   cooldown: 0.8
   wallMaterial: {fileID: 2100000, guid: 38f3ec176ae7e0a42b5f0cea8e17198b, type: 2}
   previewMaterial: {fileID: 2100000, guid: 10f692b0860b49d42a379524b30d4c22, type: 2}
   invalidPreviewMaterial: {fileID: 2100000, guid: c0d1ea23e009cad4b8a2802fccf3ffc6, type: 2}
+  defaultsVersion: 1

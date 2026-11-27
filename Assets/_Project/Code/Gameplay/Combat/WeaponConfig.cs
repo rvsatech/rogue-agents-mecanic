@@ -58,8 +58,11 @@ namespace Rogue.Gameplay
         [Tooltip("Balas de reserva (fora do pente).")]
         public int reserveAmmo = 120;
 
-        [Tooltip("Reserva infinita (bom para testar).")]
-        public bool infiniteReserve = false;
+        [Tooltip("TESTE: balas infinitas — o pente nunca esvazia (não precisa recarregar). Desligue para testar a recarga.")]
+        public bool infiniteMagazine = true;
+
+        [Tooltip("Reserva infinita: o pente acaba e recarrega, mas a reserva nunca zera.")]
+        public bool infiniteReserve = true;
 
         [Tooltip("Segundos para recarregar.")]
         public float reloadTime = 2f;

@@ -19,6 +19,9 @@ MonoBehaviour:
   nonClimbableMask:
     serializedVersion: 2
     m_Bits: 1280
+  noWallRunMask:
+    serializedVersion: 2
+    m_Bits: 4096
   runSpeed: 6.5
   groundAcceleration: 90
   groundDeceleration: 110
@@ -41,7 +44,10 @@ MonoBehaviour:
   heightChangeSpeed: 8
   proneHeight: 0.7
   proneSpeed: 1.3
+  getUpRecoveryTime: 2
+  getUpStartSpeedFactor: 0.35
   slideDistance: 6
+  slideMinSpeed: 3.5
   slideSpeedBoost: 1.15
   slideCooldown: 0.35
   rollDistance: 3.5

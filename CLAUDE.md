@@ -79,7 +79,7 @@ Tools/AudioGen/    -> gerador dos sons provisórios (Python: numpy + scipy), for
 | Pular | Espaço |
 | Agachar (segurar) | Shift esquerdo |
 | Wall run | **Shift + Espaço** perto de uma parede do lado (segurar Shift); Espaço na parede = salto direcional |
-| Deitar / levantar | Ctrl esquerdo (Espaço também levanta) |
+| Deitar / levantar | Ctrl esquerdo (Espaço também levanta). Deitado fica parado (só gira para mirar) |
 | Slide | **C (segurar)** — soltar termina o slide |
 | Cambalhota | Alt (toque) |
 | Pendurado na beirada | Espaço sobe · Shift ou S solta |
@@ -92,7 +92,8 @@ O Shift é compartilhado de propósito: sozinho agacha; com Espaço perto de uma
 O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só toque (cambalhota).
 
 ## Especificação das mecânicas
-1. **Base**: WASD relativo à câmera, aceleração/desaceleração quase instantâneas (sem "sabão"), HUD de debug.
+1. **Base**: WASD relativo à câmera, corrida a **7,475 m/s** (6,5 + 15%), aceleração/desaceleração quase
+   instantâneas (sem "sabão"), HUD de debug.
 2. **Pulo**: não reduz velocidade; pular para frente dá **+15%**; **bhop**: pular de novo até **0,5 s** depois de tocar
    o chão mantém o bônus (não acumula; opção `stackBhop`). Coyote time e jump buffer.
 3. **Air strafe estilo Valorant** (por eixo, relativo à câmera): soltar as teclas mantém o impulso; A/D mexem só na
@@ -103,29 +104,36 @@ O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só t
 6. **Slide (segurar C)**: precisa estar correndo (≥ 3,5 m/s). Desliza **enquanto segura**, até no máximo **6 m**
    (comprimento do túnel azul); soltar C termina. Direção travada. Começa em 115% e cai até a velocidade agachado.
    Segurar C parado = agachar. Pulo cancela. **Atira deslizando** (tronco para a mira, pernas na direção do slide).
-7. **Wall run (Shift + Espaço)**: parede do lado, até **3 s**; soltar Shift ou acabar o tempo = cai. Espaço na parede =
-   salto direcional (sempre um pouco para longe). Atira na parede. Não repete a mesma parede sem tocar o chão.
-   Sobe ~0,75 m no começo e desce devagar. Não funciona em `NonClimbable` nem na barreira (`noWallRunMask`).
+7. **Wall run (Shift + Espaço)**: parede do lado, **no máximo 2 s** (~13 m); soltar Shift ou acabar o tempo = desgruda
+   (empurrãozinho para fora) e cai. Espaço na parede = salto direcional (sempre um pouco para longe). Atira na parede.
+   Não repete a mesma parede sem tocar o chão. Sobe ~0,75 m no começo e desce devagar. Não funciona em
+   `NonClimbable` nem na barreira (`noWallRunMask`). **O corpo fica sempre ao longo da parede**, mesmo virando a
+   câmera ou atirando: só o tronco gira para a mira (até 90°) — nunca fica de costas.
 8. **Beirada**: no ar, de frente para o bloco, agarra se a mão alcançar (`ledgeMaxReach` 2,1 m acima do pé; com o pulo
    alcança ~3,35 m: bloco de 3 m sim, 3,5 m não). Até 1,5 m acima do pé sobe direto; mais alto fica **pendurado com
    as mãos** (Espaço sobe, Shift/S solta). Bloco roxo (`NonClimbable`) e alvos não podem ser agarrados.
 9. **Gelo (tecla 4)**: na mão aparece uma **prévia transparente** (azul = pode, vermelha = não pode). Clique coloca a
-   barreira **instantânea**. Alcance = **2 slides** (12 m). **Altura 2,3 m (dá para escalar e passar por cima)**,
+   barreira **instantânea**: o gelo sai na mão na hora (`equipTime` 0), o lugar é calculado no próprio clique e o
+   clique fica guardado 0,2 s (`fireBufferTime`) — apertar **4 + clique** juntos já coloca. Alcance = **2 slides** (12 m). **Altura 2,3 m (dá para escalar e passar por cima)**,
    largura 4 m, **levemente curvada para dentro** (40°). Vida = **meio pente do rifle** (20 × 30 × 0,5 = 300).
    **Quebra sozinha em 1 minuto** (pisca nos últimos 3 s) e solta pedaços ao quebrar. Máximo 3 ao mesmo tempo.
    Layer `IceWall`: escalável, mas sem wall run. Depois de colocar volta para a arma anterior.
 10. **Armas**: 1 rifle (automático, 20 de dano), 2 pistola (um tiro por clique, 34 de dano, **+10% de velocidade**),
     3 karambit (golpe em arco por clique, 55 de dano, **+15% de velocidade**). Sacar leva 0,15–0,4 s.
     Atirar correndo no chão: **-20%**. Atira correndo, pulando, agachado, deitado, deslizando e na parede.
-11. **Munição e recarga**: rifle 30 no pente + 120 de reserva, recarga 2 s; pistola 12 + 48, 1,4 s.
+11. **Munição e recarga**: rifle 30 no pente, recarga 2 s; pistola 12, 1,4 s. **Para testes, balas infinitas**:
+    `infiniteMagazine` (o pente nunca esvazia) e `infiniteReserve` em cada arma. Para testar a recarga, desligar
+    `infiniteMagazine` (com `infiniteReserve` desligado volta a 120 / 48 de reserva).
     R recarrega; pente vazio recarrega sozinho; sem reserva = clique seco. Não atira recarregando.
     Trocar de arma ou pendurar cancela a recarga. Animação: arma inclinada, mão esquerda tira o pente, leva à cintura
     e põe de volta. Contador no canto inferior direito (amarelo com pouca bala, vermelho vazio).
-    Opção `infiniteReserve` em cada arma para testes.
-12. **Deitar (Ctrl)**: **de barriga para cima** (pés para a mira, cabeça levantada, arma sobre a barriga), rastejando
-    a 1,3 m/s, câmera baixa, **atira deitado** com metade da imprecisão. Ctrl ou Espaço levanta (passa pelo agachado).
-13. **Levantar do chão**: fica lento e volta à corrida normal em **2 s** (começa em 35%, `getUpRecoveryTime` /
-    `getUpStartSpeedFactor`). Nesse tempo cambalhota, slide e wall run também saem mais fracos (não viram atalho).
+12. **Deitar (Ctrl)**: **de barriga para cima** (pés para a mira, cabeça levantada, arma sobre a barriga),
+    **parado** (`proneSpeed` 0; só gira para mirar), câmera baixa, **atira deitado** com metade da imprecisão.
+13. **Levantar do chão (Ctrl ou Espaço deitado)** — modo `GetUp` (`PlayerMotor.GetUp.cs`), parado no lugar:
+    etapa 1 deitado → **agachado** (0,6 s, `proneToCrouchTime`); etapa 2 agachado → **em pé** (0,5 s,
+    `crouchToStandTime`; segurando Shift ou sem espaço acima, termina agachado); etapa 3 **lentidão**: começa em
+    **25%** e volta à corrida normal em **1,5 s** (`getUpStartSpeedFactor` / `getUpRecoveryTime`). Nesse tempo
+    cambalhota, slide e wall run também saem mais fracos. Dá para atirar levantando; pular/rolar/deslizar não.
 
 ## Sons
 - Todos os sons atuais são **provisórios, gerados por síntese** (`Tools/AudioGen/make_sfx.py`, sem samples de
@@ -147,7 +155,8 @@ O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só t
 
 ## Princípio de "zero delay"
 Nenhuma ação trava o controle esperando animação. Input buffer curto, transições imediatas no mesmo tick e
-cancelamentos (pular no slide, pular no fim da cambalhota) quando fizer sentido. Exceção pedida: levantar do chão.
+cancelamentos (pular no slide, pular no fim da cambalhota) quando fizer sentido. Exceção pedida: deitar/levantar
+(deitado não anda e levantar leva tempo, de propósito).
 
 ## Assets gratuitos para testes (licenças livres)
 - **Kenney.nl** (CC0, inclusive sons: Impact Sounds, RPG Audio), **Quaternius** (CC0), **Poly Haven** (CC0),
@@ -160,7 +169,9 @@ cancelamentos (pular no slide, pular no fim da cambalhota) quando fizer sentido.
 | Base, pulo/bhop, air strafe Valorant, agachar | Testado pelo dono — ajustes de feel em andamento |
 | Manequim UAL (Quaternius, CC0) via glTFast, animação Legacy + IK | Testado pelo dono |
 | Cambalhota, wall run, beirada, armas 1–4, gelo | Testado pelo dono — ajustes pedidos aplicados |
-| Slide segurando C, deitar de costas, lentidão ao levantar | Código escrito — testar |
+| Slide segurando C, deitar de costas | Testado pelo dono — ajustes pedidos aplicados |
+| Deitado parado, levantar em etapas, wall run 2 s | Testado pelo dono — ajustes pedidos aplicados |
+| Lentidão ao levantar 1,5 s, +15% de velocidade, gelo instantâneo (4 + clique), balas infinitas | Código escrito — testar |
 | Munição, recarga (R), contador, zoom só com arma de fogo | Código escrito — testar |
 | Gelo 2,3 m escalável, meio pente, 1 minuto, pedaços | Código escrito — testar |
 | Sons provisórios (síntese) + sistema de som | Código escrito — testar |
@@ -171,7 +182,7 @@ cancelamentos (pular no slide, pular no fim da cambalhota) quando fizer sentido.
 - `Code/Gameplay/Player/PlayerInputReader.cs` — teclado/mouse -> PlayerInputFrame (latch dos "apertou").
 - `Code/Gameplay/Player/PlayerMotor*.cs` — motor por modo (partial class): `PlayerMotor.cs` (tick, timers, funções
   comuns, `WeaponSpeedMultiplier`/`FiringGroundPenalty`/`GetUpSpeedFactor`), `.Locomotion` (inclui deitar),
-  `.Slide`, `.Roll`, `.WallRun`, `.Ledge`. Modo atual em `PlayerSimState.Mode` (+ `Prone`/`Crouching`).
+  `.Slide`, `.Roll`, `.WallRun`, `.Ledge`, `.GetUp`. Modo atual em `PlayerSimState.Mode` (+ `Prone`/`Crouching`).
 - `Code/Gameplay/Player/PlayerSimState.cs` / `MovementConfig.cs` — estado e números (`defaultsVersion` para migração).
 - `Code/Gameplay/Player/PlayerVisual.cs` — visual interpolado, direção do corpo, inclinação na parede, pose deitada.
 - `Code/Gameplay/Player/CharacterModelAnimator.cs` — animações, torção do quadril, coldres, IK de braços/pernas, faca,

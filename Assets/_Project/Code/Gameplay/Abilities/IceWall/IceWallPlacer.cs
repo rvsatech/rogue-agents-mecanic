@@ -112,10 +112,17 @@ namespace Rogue.Gameplay
             }
         }
 
-        /// <summary>Coloca a barreira onde a prévia está. Retorna false se não deu.</summary>
+        /// <summary>
+        /// Coloca a barreira onde a mira aponta. O lugar é calculado AGORA (não espera a prévia do frame):
+        /// apertar 4 + clique juntos já coloca. Retorna false se não deu.
+        /// </summary>
         public bool TryPlace()
         {
-            if (config == null || !HasValidPlacement || Time.time < nextPlaceTime) return false;
+            if (config == null || Time.time < nextPlaceTime) return false;
+
+            hasPlacement = ComputePlacement(out placementPosition, out placementRotation, out placementValid,
+                out placementDistance);
+            if (!HasValidPlacement) return false;
 
             IceWall wall = GetWall();
             wall.transform.SetPositionAndRotation(placementPosition, placementRotation);

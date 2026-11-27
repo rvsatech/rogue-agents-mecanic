@@ -12,7 +12,7 @@ namespace Rogue.Gameplay
             Vector3 flat = Flat(state.Velocity);
             float vy = state.Velocity.y;
 
-            // Deitado: tem regras próprias (rastejar, Espaço/Ctrl levanta).
+            // Deitado: tem regras próprias (parado, só gira; Ctrl/Espaço começa a levantar).
             if (state.Prone)
             {
                 SimulateProne(frame, wishDir, dt, false);
@@ -211,41 +211,28 @@ namespace Rogue.Gameplay
         }
 
         /// <summary>
-        /// Deitado de barriga para cima: rasteja devagar, dá para atirar (com mais precisão).
-        /// Ctrl ou Espaço levanta (vai para agachado e depois em pé, se houver espaço).
-        /// Ao levantar, fica mais lento e volta à velocidade normal em getUpRecoveryTime (2 s).
+        /// Deitado de barriga para cima: NÃO anda (proneSpeed 0), só gira para mirar; atira com mais precisão.
+        /// Ctrl ou Espaço começa a levantar em etapas (PlayerMotor.GetUp): deitado -> agachado -> em pé -> lento.
         /// </summary>
         private void SimulateProne(in PlayerInputFrame frame, Vector3 wishDir, float dt, bool justEntered)
         {
             bool wantsUp = !justEntered && (frame.ProneTogglePressed || state.JumpBufferTimer > 0f);
-            bool canGetUp = HasHeadroom(config.crouchHeight);
-
-            if ((wantsUp && canGetUp) || !state.Grounded)
+            if (wantsUp && state.Grounded && HasHeadroom(config.crouchHeight))
             {
-                state.Prone = false;
-                state.Crouching = state.Grounded; // levanta passando pelo agachado
-                state.JumpBufferTimer = 0f;
-                if (state.Grounded) state.GetUpTimer = config.getUpRecoveryTime; // lento por 2 s
+                StartGetUp();
+                SimulateGetUp(frame, dt);
+                return;
             }
-            else
-            {
+
+            if (state.Grounded)
                 UpdateHeight(config.proneHeight, dt);
-            }
-
-            if (state.Prone)
-            {
-                Vector3 flat = GroundMove(Flat(state.Velocity), wishDir, dt);
-                float vy = state.Grounded ? -config.groundStickForce : state.Velocity.y - config.gravity * dt;
-                MoveAndCollide(ref flat, ref vy, dt);
-            }
             else
-            {
-                // Já levantou: segue no modo normal neste mesmo tick (sem delay).
-                UpdateCrouch(frame.CrouchHeld && state.Grounded || state.Crouching, dt);
-                Vector3 flat = GroundMove(Flat(state.Velocity), wishDir, dt);
-                float vy = state.Grounded ? -config.groundStickForce : state.Velocity.y - config.gravity * dt;
-                MoveAndCollide(ref flat, ref vy, dt);
-            }
+                state.Prone = false; // o chão sumiu: sai do deitado e cai
+
+            // Parado (proneSpeed 0): freia o que sobrou. Com proneSpeed > 0 volta a rastejar.
+            Vector3 flat = GroundMove(Flat(state.Velocity), wishDir, dt);
+            float vy = state.Grounded ? -config.groundStickForce : state.Velocity.y - config.gravity * dt;
+            MoveAndCollide(ref flat, ref vy, dt);
         }
     }
 }

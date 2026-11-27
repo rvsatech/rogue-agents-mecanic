@@ -43,6 +43,7 @@ namespace Rogue.Gameplay
         private bool previousProne;
         private bool previousCrouching;
         private float previousVerticalSpeed;
+        private int previousGetUpPhase;
         private float previousReloadProgress;
         private float crawlDistance;
 
@@ -179,7 +180,11 @@ namespace Rogue.Gameplay
                 Play(bank.cloth, chest, 0.6f);
             }
 
-            // Rastejando: roupa arrastando no chão.
+            // Levantando: etapa 2 (agachado -> em pé) faz barulho de roupa.
+            if (s.GetUpPhase == 2 && previousGetUpPhase != 2)
+                Play(bank.cloth, chest, 0.7f, 0.95f);
+
+            // Rastejando (se proneSpeed > 0): roupa arrastando no chão.
             if (s.Prone && s.Grounded && s.HorizontalSpeed > 0.2f)
             {
                 crawlDistance += s.HorizontalSpeed * Time.fixedDeltaTime;
@@ -205,6 +210,7 @@ namespace Rogue.Gameplay
             previousProne = s.Prone;
             previousCrouching = s.Crouching;
             previousVerticalSpeed = s.Velocity.y;
+            previousGetUpPhase = s.GetUpPhase;
         }
 
         /// <summary>Recarga: sons nos momentos em que a mão tira o pente, põe o pente e engatilha.</summary>

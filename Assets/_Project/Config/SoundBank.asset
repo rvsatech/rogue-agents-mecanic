@@ -1,0 +1,179 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: adf4651ceaa0eda439914129b0725e2f, type: 3}
+  m_Name: SoundBank
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.SoundBank
+  masterVolume: 1
+  localPlayerSpatialBlend: 0.2
+  footstep:
+    clips:
+    - {fileID: 8300000, guid: c69fcba472f119a4391db66df06e3a39, type: 3}
+    - {fileID: 8300000, guid: 6de18d10fbbb2b04c8aa7cc55a8bc28f, type: 3}
+    - {fileID: 8300000, guid: a6f5ee7474210444086e1bb3fd3b72f3, type: 3}
+    - {fileID: 8300000, guid: 6982913ad35f1a840bc451fbad1af2cd, type: 3}
+    - {fileID: 8300000, guid: f2f8e66771646a5448bc17fc481803e7, type: 3}
+    - {fileID: 8300000, guid: ce58eb0f112372d44a740af45afad5b5, type: 3}
+    volume: 0.32
+    pitch: {x: 0.9, y: 1.1}
+    spatialBlend: 1
+    maxDistance: 25
+  jump:
+    clips:
+    - {fileID: 8300000, guid: 0a7e921d690f85f498c4cdf75e832122, type: 3}
+    - {fileID: 8300000, guid: 5cd53def61a90dc4b96901c4aab3539e, type: 3}
+    - {fileID: 8300000, guid: 23ef1dc52649cde4e9228d80790e723a, type: 3}
+    volume: 0.4
+    pitch: {x: 0.94, y: 1.06}
+    spatialBlend: 1
+    maxDistance: 25
+  land:
+    clips:
+    - {fileID: 8300000, guid: 88dc64beb54787e41953c76176745f57, type: 3}
+    - {fileID: 8300000, guid: 864087013ad769a42b6045719dee74e2, type: 3}
+    - {fileID: 8300000, guid: 8699b331232085b498ad257b51a60d1e, type: 3}
+    volume: 0.55
+    pitch: {x: 0.94, y: 1.06}
+    spatialBlend: 1
+    maxDistance: 30
+  slideStart:
+    clips:
+    - {fileID: 8300000, guid: 2939cc5de5653e34bbfeee299b18bbbe, type: 3}
+    - {fileID: 8300000, guid: 29336103b5f051f4bb5801fe27a1b20e, type: 3}
+    volume: 0.5
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 25
+  slideLoop:
+    clips:
+    - {fileID: 8300000, guid: e890d247e5922ef4ebf597354613add7, type: 3}
+    volume: 0.3
+    pitch: {x: 1, y: 1}
+    spatialBlend: 1
+    maxDistance: 25
+  roll:
+    clips:
+    - {fileID: 8300000, guid: 636bb41fdc4fc1c438bf326c1da9c412, type: 3}
+    - {fileID: 8300000, guid: e487e7b19e4285843bbfc38216c623f6, type: 3}
+    volume: 0.5
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 25
+  cloth:
+    clips:
+    - {fileID: 8300000, guid: d94521f23d8d4dd4489ef0c0bf287cb9, type: 3}
+    - {fileID: 8300000, guid: d3a25962bb2eb5c4b88fe1aedaa93353, type: 3}
+    - {fileID: 8300000, guid: 67fec1bc4f4c47349a7a45e90940839b, type: 3}
+    volume: 0.3
+    pitch: {x: 0.92, y: 1.08}
+    spatialBlend: 1
+    maxDistance: 15
+  proneDown:
+    clips:
+    - {fileID: 8300000, guid: 794b4b4198407ff4d9a031df338b3ed0, type: 3}
+    - {fileID: 8300000, guid: 9a978e5c81e7222449267c10f888c0b6, type: 3}
+    volume: 0.5
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 20
+  proneUp:
+    clips:
+    - {fileID: 8300000, guid: 3492910f5986aaa4fa70d1f03ec5da1b, type: 3}
+    - {fileID: 8300000, guid: 8122f1e7d3f229943a3f2644f826ff3b, type: 3}
+    volume: 0.4
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 20
+  ledgeGrab:
+    clips:
+    - {fileID: 8300000, guid: cb14eeaba8de24b448b065805c9ee03c, type: 3}
+    - {fileID: 8300000, guid: 2e40633db8f885d4f822ab95fbed702e, type: 3}
+    volume: 0.5
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 25
+  wallRunStart:
+    clips:
+    - {fileID: 8300000, guid: c8c6dd844f82a49469ead257645cdd98, type: 3}
+    - {fileID: 8300000, guid: 685ac35ae725b1646bb116c1da076f88, type: 3}
+    volume: 0.4
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 25
+  voiceEffort:
+    clips:
+    - {fileID: 8300000, guid: d7fc85d2d4004114e9bfa834949dd400, type: 3}
+    - {fileID: 8300000, guid: 5675cc2fac1eddc4b974e129056d24a0, type: 3}
+    - {fileID: 8300000, guid: 8c469cde60a56a840a7837eca86a4db9, type: 3}
+    volume: 0.5
+    pitch: {x: 0.96, y: 1.04}
+    spatialBlend: 1
+    maxDistance: 25
+  voiceShort:
+    clips:
+    - {fileID: 8300000, guid: 0190c3eb14af5e64294b7c00f7a3c2b3, type: 3}
+    - {fileID: 8300000, guid: 1a3f4a1046fa04a49a1d384f5a825fef, type: 3}
+    - {fileID: 8300000, guid: 31c558f2fe9af924da22488bf2d22b1d, type: 3}
+    - {fileID: 8300000, guid: 62c44bc523bd1614ca320797cb206127, type: 3}
+    volume: 0.45
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 25
+  bulletImpact:
+    clips:
+    - {fileID: 8300000, guid: 15aad9d1070082f4e87937f094b04b9c, type: 3}
+    - {fileID: 8300000, guid: 5a76de24ec2b5d04188d7b4d4f91c633, type: 3}
+    - {fileID: 8300000, guid: 94f96c05f2dc324468be91d1a10178cd, type: 3}
+    - {fileID: 8300000, guid: ed195937bee4c4f4b96199b89b0b7676, type: 3}
+    volume: 0.5
+    pitch: {x: 0.9, y: 1.1}
+    spatialBlend: 1
+    maxDistance: 40
+  bulletHitTarget:
+    clips:
+    - {fileID: 8300000, guid: 45bf7966bd74d5b4dbb72c50f2965a80, type: 3}
+    - {fileID: 8300000, guid: 87cfe3af5b343124bbf6725f798ea10e, type: 3}
+    volume: 0.6
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 40
+  hitMarker:
+    clips:
+    - {fileID: 8300000, guid: ca8e60514cba8f744b00dda3cbac5300, type: 3}
+    volume: 0.35
+    pitch: {x: 0.98, y: 1.02}
+    spatialBlend: 0
+    maxDistance: 10
+  iceCreate:
+    clips:
+    - {fileID: 8300000, guid: 092c9adb00b44e445bf3349e92cb22f9, type: 3}
+    - {fileID: 8300000, guid: 067fd01b3bbe0b141988a2e79a8f5579, type: 3}
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 45
+  iceImpact:
+    clips:
+    - {fileID: 8300000, guid: bc8ae5a03b3cf574ba84340b464b198d, type: 3}
+    - {fileID: 8300000, guid: 0d33aa4912dc91c4399e1497ae24a8f5, type: 3}
+    - {fileID: 8300000, guid: c432c044af4eac14cb5705e21f00a380, type: 3}
+    volume: 0.5
+    pitch: {x: 0.92, y: 1.08}
+    spatialBlend: 1
+    maxDistance: 40
+  iceBreak:
+    clips:
+    - {fileID: 8300000, guid: 472d839516dd4d845a2db0ae9188171c, type: 3}
+    - {fileID: 8300000, guid: 0291363158272314aa5e2db562cf5d14, type: 3}
+    volume: 0.8
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 50

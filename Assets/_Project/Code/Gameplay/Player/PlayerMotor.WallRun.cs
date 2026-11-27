@@ -106,9 +106,11 @@ namespace Rogue.Gameplay
                 return;
             }
 
-            // Soltou o Shift ou acabou o tempo: cai (mantém a velocidade).
+            // Soltou o Shift ou acabou o tempo (máx. wallRunDuration = 2 s): cai.
             if (!frame.WallRunHeld || state.WallRunTimer >= config.wallRunDuration)
             {
+                // Desgruda da parede (um empurrãozinho para fora) e mantém a velocidade ao longo dela.
+                state.Velocity += state.WallNormal * config.wallRunEndPushSpeed;
                 EndWallRun();
                 SimulateLocomotion(frame, dt);
                 return;

@@ -14,7 +14,8 @@ namespace Rogue.Gameplay
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
-        [SerializeField] private float spawnPopDuration = 0.08f;
+        [Tooltip("'Pop' de entrada (segundos): nasce com 70% da altura e completa nesse tempo. 0 = sem pop.")]
+        [SerializeField] private float spawnPopDuration = 0.04f;
 
         [Tooltip("Nos últimos segundos antes de quebrar sozinha, a barreira pisca (aviso).")]
         [SerializeField] private float expireWarningTime = 3f;
@@ -91,7 +92,7 @@ namespace Rogue.Gameplay
         {
             // "Pop" de entrada: cresce do chão para cima bem rápido (barreira instantânea).
             float grow = spawnPopDuration <= 0f ? 1f : Mathf.Clamp01((Time.time - spawnTime) / spawnPopDuration);
-            transform.localScale = new Vector3(1f, Mathf.Lerp(0.25f, 1f, grow), 1f);
+            transform.localScale = new Vector3(1f, Mathf.Lerp(0.7f, 1f, grow), 1f);
 
             // Pisca branco ao levar tiro e escurece conforme perde vida.
             Color color = flashTimer > 0f

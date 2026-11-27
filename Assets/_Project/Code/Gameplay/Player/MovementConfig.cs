@@ -25,7 +25,7 @@ namespace Rogue.Gameplay
 
         [Header("Chão")]
         [Tooltip("Velocidade de corrida normal, em metros por segundo.")]
-        public float runSpeed = 6.5f;
+        public float runSpeed = 7.475f; // 6,5 + 15%
 
         [Tooltip("Quão rápido chega na velocidade máxima. Alto = resposta instantânea.")]
         public float groundAcceleration = 90f;
@@ -87,14 +87,21 @@ namespace Rogue.Gameplay
         [Tooltip("Altura da cápsula deitado (mínimo = 2 x raio da cápsula).")]
         public float proneHeight = 0.7f;
 
-        [Tooltip("Velocidade rastejando deitado.")]
-        public float proneSpeed = 1.3f;
+        [Tooltip("Velocidade rastejando deitado. 0 = deitado não anda (só gira para mirar).")]
+        public float proneSpeed = 0f;
 
-        [Tooltip("Segundos, depois de levantar, até voltar à velocidade normal de corrida.")]
-        public float getUpRecoveryTime = 2f;
+        [Header("Levantar do chão (Ctrl ou Espaço deitado)")]
+        [Tooltip("Etapa 1: segundos de deitado até agachado (parado no lugar).")]
+        public float proneToCrouchTime = 0.6f;
 
-        [Tooltip("Velocidade logo ao levantar, em relação à normal (0.35 = 35%). Sobe até 100% em getUpRecoveryTime.")]
-        [Range(0.1f, 1f)] public float getUpStartSpeedFactor = 0.35f;
+        [Tooltip("Etapa 2: segundos de agachado até em pé (parado no lugar). Segurando Shift, para no agachado.")]
+        public float crouchToStandTime = 0.5f;
+
+        [Tooltip("Etapa 3: segundos, já em pé, até voltar à velocidade normal de corrida.")]
+        public float getUpRecoveryTime = 1.5f;
+
+        [Tooltip("Velocidade logo depois de ficar em pé, em relação à normal (0.25 = 25%). Sobe até 100% em getUpRecoveryTime.")]
+        [Range(0.1f, 1f)] public float getUpStartSpeedFactor = 0.25f;
 
         [Header("Slide (segurar C)")]
         [Tooltip("Distância máxima do slide segurando C, em metros (6 = comprimento do túnel azul). Soltar o C para antes.")]
@@ -129,8 +136,11 @@ namespace Rogue.Gameplay
         public float rollJumpCancelTime = 0.35f;
 
         [Header("Wall run (Shift + Espaço)")]
-        [Tooltip("Tempo máximo correndo na parede.")]
-        public float wallRunDuration = 3f;
+        [Tooltip("Tempo máximo correndo na parede (segundos).")]
+        public float wallRunDuration = 2f;
+
+        [Tooltip("Quando o tempo acaba, empurra o corpo para longe da parede (m/s) para cair de verdade.")]
+        public float wallRunEndPushSpeed = 1.5f;
 
         [Tooltip("Distância extra (além do corpo) para achar uma parede do lado.")]
         public float wallRunDetectDistance = 0.6f;

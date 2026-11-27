@@ -26,10 +26,11 @@ namespace Rogue.EditorTools
         private const string CharacterModelPath = "Assets/ThirdParty/Quaternius/UniversalAnimationLibrary/AnimationLibrary_Godot_Standard.gltf";
 
         /// <summary>Sobe quando os valores padrão do MovementConfig mudam (atualiza configs antigas uma vez).</summary>
-        private const int MovementDefaultsVersion = 2;
+        private const int MovementDefaultsVersion = 4;
 
-        /// <summary>Sobe quando os valores padrão das armas mudam (v1: munição e recarga).</summary>
-        private const int WeaponDefaultsVersion = 1;
+        /// <summary>Sobe quando os valores padrão das armas mudam (v1: munição; v2: reserva infinita;
+        /// v3: gelo sem saque + balas infinitas).</summary>
+        private const int WeaponDefaultsVersion = 3;
 
         /// <summary>Sobe quando os valores padrão da barreira mudam (v1: 2,3 m, meio pente, 1 minuto).</summary>
         private const int IceWallDefaultsVersion = 1;
@@ -309,12 +310,29 @@ namespace Rogue.EditorTools
         {
             if (config.defaultsVersion >= MovementDefaultsVersion) return;
 
-            config.airStrafeAcceleration = 14f;
-            config.slideDistance = 6f;
-            config.wallRunDuration = 3f;
-            config.wallRunSinkGravity = 0.5f;
-            config.wallRunMaxSinkSpeed = 0.35f;
-            config.hangHandHeight = 1.8f;
+            if (config.defaultsVersion < 2)
+            {
+                config.airStrafeAcceleration = 14f;
+                config.slideDistance = 6f;
+                config.wallRunSinkGravity = 0.5f;
+                config.wallRunMaxSinkSpeed = 0.35f;
+                config.hangHandHeight = 1.8f;
+            }
+
+            if (config.defaultsVersion < 3)
+            {
+                // v3: deitado parado, levantar em etapas, wall run de no máximo 2 s.
+                config.proneSpeed = 0f;
+                config.proneToCrouchTime = 0.6f;
+                config.crouchToStandTime = 0.5f;
+                config.getUpStartSpeedFactor = 0.25f;
+                config.wallRunDuration = 2f;
+                config.wallRunEndPushSpeed = 1.5f;
+            }
+
+            // v4: lentidão depois de levantar pela metade (3 s -> 1,5 s) e personagem 15% mais rápido.
+            config.getUpRecoveryTime = 1.5f;
+            config.runSpeed = 7.475f;
             config.defaultsVersion = MovementDefaultsVersion;
             Debug.Log("[Rogue] MovementConfig atualizado para os novos valores padrão.");
         }
@@ -386,7 +404,7 @@ namespace Rogue.EditorTools
                         config.kind = WeaponKind.Gadget;
                         config.moveSpeedMultiplier = 1f;
                         config.firingGroundSpeedPenalty = 0f;
-                        config.equipTime = 0.2f;
+                        config.equipTime = 0f;
                         config.automatic = false;
                         config.fireRate = 1.25f;
                         config.damage = 0f;
@@ -406,6 +424,21 @@ namespace Rogue.EditorTools
         {
             if (config.defaultsVersion >= WeaponDefaultsVersion) return;
 
+            if (config.defaultsVersion < 1) SetAmmoDefaults(config, slot);
+
+            // v2: reserva infinita para testes (o pente ainda acaba e precisa recarregar).
+            if (config.defaultsVersion < 2) config.infiniteReserve = config.UsesAmmo;
+
+            // v3: gelo sai na mão na hora (4 + clique coloca instantâneo) e balas infinitas para testes.
+            if (slot == WeaponSlot.Gadget) config.equipTime = 0f;
+            config.infiniteMagazine = config.UsesAmmo;
+
+            config.defaultsVersion = WeaponDefaultsVersion;
+        }
+
+        /// <summary>Munição e recarga (v1) por tipo de arma.</summary>
+        private static void SetAmmoDefaults(WeaponConfig config, WeaponSlot slot)
+        {
             switch (slot)
             {
                 case WeaponSlot.Primary:   // rifle: 30 no pente, 120 de reserva, 2 s para recarregar
@@ -424,9 +457,7 @@ namespace Rogue.EditorTools
                     break;
             }
 
-            config.infiniteReserve = false;
             config.autoReloadWhenEmpty = true;
-            config.defaultsVersion = WeaponDefaultsVersion;
         }
 
         // ================= Sons =================

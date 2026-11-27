@@ -21,6 +21,11 @@ MonoBehaviour:
   automatic: 1
   fireRate: 10
   damage: 20
+  magazineSize: 30
+  reserveAmmo: 120
+  infiniteReserve: 0
+  reloadTime: 2
+  autoReloadWhenEmpty: 1
   range: 150
   spreadDegrees: 0.6
   airSpreadDegrees: 1.5
@@ -38,3 +43,61 @@ MonoBehaviour:
   tracerDuration: 0.05
   tracerWidth: 0.03
   muzzleFlashDuration: 0.04
+  fireSound:
+    clips:
+    - {fileID: 8300000, guid: 6db09d9bd59ed114ea03219a02980ebf, type: 3}
+    - {fileID: 8300000, guid: f65edfa4070bee74e90623ca24432de1, type: 3}
+    - {fileID: 8300000, guid: c7e15837c8a785446af120310a006f3a, type: 3}
+    volume: 0.75
+    pitch: {x: 0.96, y: 1.04}
+    spatialBlend: 1
+    maxDistance: 120
+  equipSound:
+    clips:
+    - {fileID: 8300000, guid: b40544ffac2efd74cb008755fd5bca35, type: 3}
+    - {fileID: 8300000, guid: 2a84447116724d1449e5d5a75b58dc3b, type: 3}
+    volume: 0.45
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 20
+  dryFireSound:
+    clips:
+    - {fileID: 8300000, guid: 6a9348c14b7d1154c930b076f0555170, type: 3}
+    volume: 0.5
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 15
+  reloadOutSound:
+    clips:
+    - {fileID: 8300000, guid: ef206720b7fad4f4ab13580e9f9d5e8f, type: 3}
+    volume: 0.6
+    pitch: {x: 0.96, y: 1.04}
+    spatialBlend: 1
+    maxDistance: 20
+  reloadInSound:
+    clips:
+    - {fileID: 8300000, guid: bbb3a5521344fa94b8c49bf3f971ba39, type: 3}
+    volume: 0.6
+    pitch: {x: 0.96, y: 1.04}
+    spatialBlend: 1
+    maxDistance: 20
+  reloadRackSound:
+    clips:
+    - {fileID: 8300000, guid: 5e56123ee18914c4ea43fb752dd5c4ab, type: 3}
+    volume: 0.6
+    pitch: {x: 0.96, y: 1.04}
+    spatialBlend: 1
+    maxDistance: 20
+  swingSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  meleeHitSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  defaultsVersion: 1

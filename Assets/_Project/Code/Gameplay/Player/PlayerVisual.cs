@@ -11,8 +11,10 @@ namespace Rogue.Gameplay
     /// - Atirando, mirando, golpeando ou com o gelo na mão: para a MIRA; as pernas seguem o movimento
     ///   (ex.: correr de ré atirando para frente).
     /// - Cambalhota: para a direção da cambalhota.
-    /// - Parede: ao longo da parede, inclinado para fora. Pendurado: para a parede.
+    /// - Parede: SEMPRE ao longo da parede, inclinado para fora (mesmo virando a câmera ou atirando:
+    ///   só o tronco gira para a mira, com limite — nunca fica de costas). Pendurado: para a parede.
     /// - Deitado: de barriga para cima, pés para a mira, cabeça levantada olhando para frente.
+    /// - Levantando: senta e agacha no tempo da etapa 1 (proneToCrouchTime).
     /// </summary>
     public sealed class PlayerVisual : MonoBehaviour
     {
@@ -48,7 +50,10 @@ namespace Rogue.Gameplay
         [Tooltip("Altura do quadril deitado (metade da grossura do corpo).")]
         [SerializeField] private float proneHipHeight = 0.15f;
 
-        [Tooltip("Segundos para deitar/levantar.")]
+        [Tooltip("Altura do quadril do modelo agachado (metros).")]
+        [SerializeField] private float crouchHipHeight = 0.6f;
+
+        [Tooltip("Segundos para deitar.")]
         [SerializeField] private float proneTransitionTime = 0.25f;
 
         [Header("Cápsula provisória (se não houver modelo)")]
@@ -60,6 +65,7 @@ namespace Rogue.Gameplay
         private float wallOffset;
         private float hangOffset;
         private float proneWeight;
+        private float pivotHipHeight = -1f;
         private bool initialized;
 
         /// <summary>Para onde o corpo está virado (graus).</summary>
@@ -106,7 +112,7 @@ namespace Rogue.Gameplay
             switch (s.Mode)
             {
                 case MotorMode.WallRun:
-                    targetYaw = InCombat ? aimYaw : YawOf(s.WallTangent, bodyYaw);
+                    targetYaw = YawOf(s.WallTangent, bodyYaw); // nunca de costas (o tronco gira no animator)
                     break;
                 case MotorMode.LedgeHang:
                 case MotorMode.LedgeClimb:
@@ -163,11 +169,24 @@ namespace Rogue.Gameplay
                 position += -s.LedgeNormal * hangOffset;
 
             // Deitado: gira o corpo 90° PARA TRÁS em volta do quadril (barriga para cima, pés para a mira)
-            // e encosta as costas no chão.
-            proneWeight = Mathf.MoveTowards(proneWeight, s.Prone ? 1f : 0f, dt / Mathf.Max(0.01f, proneTransitionTime));
+            // e encosta as costas no chão. Levantando (etapa 1), volta no tempo da etapa.
+            float proneTarget = s.Prone ? 1f : 0f;
+            float proneRate = dt / Mathf.Max(0.01f, proneTransitionTime);
+            if (s.Mode == MotorMode.GetUp && s.GetUpPhase == 1 && motor.Config != null)
+            {
+                float t = Mathf.Clamp01(s.GetUpPhaseTimer / Mathf.Max(0.01f, motor.Config.proneToCrouchTime));
+                proneTarget = 1f - Mathf.SmoothStep(0f, 1f, t);
+                proneRate = dt / 0.05f; // acompanha a etapa, suave entre os ticks
+            }
+            proneWeight = Mathf.MoveTowards(proneWeight, proneTarget, proneRate);
+
+            // Ponto de giro = quadril da pose que está tocando (em pé ou agachado).
+            float wantedPivot = s.Crouching && !s.Prone ? crouchHipHeight : hipHeight;
+            pivotHipHeight = pivotHipHeight < 0f ? wantedPivot : Mathf.MoveTowards(pivotHipHeight, wantedPivot, 3f * dt);
+
             Quaternion bodyRotation = Quaternion.Euler(0f, bodyYaw, 0f) * Quaternion.Euler(-90f * proneWeight, 0f, 0f);
-            Vector3 hipsWanted = position + Vector3.up * Mathf.Lerp(hipHeight, proneHipHeight, proneWeight);
-            Vector3 rootPosition = hipsWanted - bodyRotation * (Vector3.up * hipHeight);
+            Vector3 hipsWanted = position + Vector3.up * Mathf.Lerp(pivotHipHeight, proneHipHeight, proneWeight);
+            Vector3 rootPosition = hipsWanted - bodyRotation * (Vector3.up * pivotHipHeight);
 
             transform.SetPositionAndRotation(rootPosition, bodyRotation * Quaternion.Euler(0f, 0f, lean));
 

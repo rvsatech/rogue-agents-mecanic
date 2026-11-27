@@ -99,6 +99,10 @@ namespace Rogue.Gameplay
         [Tooltip("Onde a arma fica deitado, em relação ao peito (direita, cima, frente): sobre a barriga.")]
         [SerializeField] private Vector3 proneHoldOffset = new Vector3(0.05f, 0.3f, 0.2f);
 
+        [Header("Parede")]
+        [Tooltip("Correndo na parede em combate: quanto o tronco gira para a mira (o corpo fica ao longo da parede).")]
+        [SerializeField] private float wallRunTorsoTwist = 90f;
+
         [Header("Passos (som)")]
         [Tooltip("O pé conta como 'no chão' abaixo desta altura (acima da altura dele apoiado), em metros.")]
         [SerializeField] private float footContactHeight = 0.025f;
@@ -120,6 +124,7 @@ namespace Rogue.Gameplay
         private string currentClip;
         private MotorMode lastMode;
         private float legTwist;
+        private float torsoTwist;
         private float slideWeight;
         private float hangWeight;
         private float combatWeight;
@@ -224,12 +229,16 @@ namespace Rogue.Gameplay
                 // Atirando deslizando: pernas na direção do slide, tronco para a mira.
                 targetTwist = Mathf.Clamp(Vector3.SignedAngle(bodyForward, s.SlideDirection, Vector3.up), -85f, 85f);
             }
-            else if (combat && s.Mode == MotorMode.WallRun)
-            {
-                // Atirando na parede: pernas correndo ao longo da parede, tronco para a mira.
-                targetTwist = Mathf.Clamp(Vector3.SignedAngle(bodyForward, s.WallTangent, Vector3.up), -maxLegTwist, maxLegTwist);
-            }
             legTwist = Mathf.MoveTowards(legTwist, targetTwist, 600f * dt);
+
+            // Parede: o corpo fica ao longo dela; em combate só o tronco gira para a mira (com limite).
+            float targetTorso = 0f;
+            if (combat && s.Mode == MotorMode.WallRun && input != null)
+            {
+                Vector3 aimFlat = Quaternion.Euler(0f, input.Yaw, 0f) * Vector3.forward;
+                targetTorso = Mathf.Clamp(Vector3.SignedAngle(bodyForward, aimFlat, Vector3.up), -wallRunTorsoTwist, wallRunTorsoTwist);
+            }
+            torsoTwist = Mathf.MoveTowards(torsoTwist, targetTorso, 600f * dt);
 
             // Pesos das poses feitas por código (sobem/descem suave).
             bool hanging = s.Mode == MotorMode.LedgeHang || s.Mode == MotorMode.LedgeClimb;
@@ -250,6 +259,7 @@ namespace Rogue.Gameplay
             string clip;
             float clipSpeed = 1f;
             float restartAt = -1f;
+            float fade = -1f;
 
             switch (s.Mode)
             {
@@ -271,6 +281,19 @@ namespace Rogue.Gameplay
                     break;
                 case MotorMode.LedgeClimb:
                     clip = s.ClimbPhase == 0 ? hangClip : climbClip;
+                    break;
+                case MotorMode.GetUp:
+                    // Etapa 1: dobra os joelhos e senta (agachado). Etapa 2: mistura devagar até ficar em pé.
+                    if (s.GetUpPhase >= 2)
+                    {
+                        clip = idleClip;
+                        fade = cfg != null ? cfg.crouchToStandTime : 0.5f;
+                    }
+                    else
+                    {
+                        clip = crouchIdleClip;
+                        fade = 0.3f;
+                    }
                     break;
                 default:
                     if (s.Prone)
@@ -303,7 +326,7 @@ namespace Rogue.Gameplay
             if (backpedal && (clip == runClip || clip == sprintClip || clip == crouchMoveClip))
                 clipSpeed = -clipSpeed; // animação de correr tocada ao contrário = correr de ré
 
-            Play(clip, clipSpeed, restartAt);
+            Play(clip, clipSpeed, restartAt, fade);
             lastMode = s.Mode;
         }
 
@@ -329,6 +352,19 @@ namespace Rogue.Gameplay
             {
                 hips.rotation = Quaternion.AngleAxis(legTwist, up) * hips.rotation;
                 spine.rotation = Quaternion.AngleAxis(-legTwist, up) * spine.rotation;
+            }
+
+            // Parede: tronco gira para a mira (o corpo continua ao longo da parede).
+            if (spine != null && Mathf.Abs(torsoTwist) > 0.01f)
+                spine.rotation = Quaternion.AngleAxis(torsoTwist, up) * spine.rotation;
+
+            // Parede: a arma não aponta além do que o tronco alcança (nunca para as costas).
+            if (s.Mode == MotorMode.WallRun && visual != null)
+            {
+                float relative = Mathf.DeltaAngle(visual.BodyYaw, aimYaw);
+                float limit = wallRunTorsoTwist + 30f;
+                if (Mathf.Abs(relative) > limit)
+                    aimDirection = Quaternion.Euler(pitch, visual.BodyYaw + Mathf.Sign(relative) * limit, 0f) * Vector3.forward;
             }
 
             // Slide: quadril baixo, tronco para trás, pernas por IK na direção do slide.
@@ -687,7 +723,7 @@ namespace Rogue.Gameplay
 
         // ===================== Utilidades =====================
 
-        private void Play(string clip, float speed, float restartAt)
+        private void Play(string clip, float speed, float restartAt, float fade = -1f)
         {
             AnimationState state = animationComponent[clip];
             if (state == null)
@@ -705,7 +741,7 @@ namespace Rogue.Gameplay
             }
             else if (clip != currentClip)
             {
-                animationComponent.CrossFade(clip, crossFadeTime);
+                animationComponent.CrossFade(clip, fade >= 0f ? fade : crossFadeTime);
                 currentClip = clip;
             }
             state.speed = speed;

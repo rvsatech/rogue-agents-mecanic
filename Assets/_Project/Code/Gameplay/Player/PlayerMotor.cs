@@ -91,6 +91,7 @@ namespace Rogue.Gameplay
                 case MotorMode.WallRun: SimulateWallRun(frame, dt); break;
                 case MotorMode.LedgeHang: SimulateLedgeHang(frame, dt); break;
                 case MotorMode.LedgeClimb: SimulateLedgeClimb(frame, dt); break;
+                case MotorMode.GetUp: SimulateGetUp(frame, dt); break;
                 default: SimulateLocomotion(frame, dt); break;
             }
 
@@ -141,6 +142,7 @@ namespace Rogue.Gameplay
                 case MotorMode.WallRun: return MovementStateId.WallRunning;
                 case MotorMode.LedgeHang: return MovementStateId.LedgeHanging;
                 case MotorMode.LedgeClimb: return MovementStateId.Climbing;
+                case MotorMode.GetUp: return MovementStateId.GettingUp;
             }
 
             if (!state.Grounded) return MovementStateId.Airborne;
@@ -174,7 +176,7 @@ namespace Rogue.Gameplay
 
         /// <summary>
         /// Depois de levantar do chão: começa devagar (getUpStartSpeedFactor) e volta ao normal
-        /// em getUpRecoveryTime (2 s). 1 = velocidade normal.
+        /// em getUpRecoveryTime (1,5 s). 1 = velocidade normal.
         /// </summary>
         public float GetUpSpeedFactor
         {

@@ -12,7 +12,8 @@ namespace Rogue.Gameplay
         Roll,        // cambalhota
         WallRun,     // correndo na parede
         LedgeHang,   // pendurado na beirada
-        LedgeClimb   // subindo a beirada
+        LedgeClimb,  // subindo a beirada
+        GetUp        // levantando do chão: deitado -> agachado -> em pé (parado no lugar)
     }
 
     /// <summary>Estados de movimento (aparecem no HUD e escolhem a animação).</summary>
@@ -27,7 +28,8 @@ namespace Rogue.Gameplay
         Rolling,
         WallRunning,
         LedgeHanging,
-        Climbing
+        Climbing,
+        GettingUp
     }
 
     /// <summary>
@@ -62,8 +64,14 @@ namespace Rogue.Gameplay
         /// <summary>Deitado de barriga para cima (Ctrl).</summary>
         public bool Prone;
 
-        /// <summary>Tempo restante do "levantando": velocidade reduzida que volta ao normal aos poucos.</summary>
+        /// <summary>Tempo restante da lentidão depois de levantar (volta ao normal aos poucos).</summary>
         public float GetUpTimer;
+
+        /// <summary>Levantando do chão: 1 = deitado -> agachado, 2 = agachado -> em pé (0 = não está levantando).</summary>
+        public int GetUpPhase;
+
+        /// <summary>Tempo dentro da etapa atual do levantar.</summary>
+        public float GetUpPhaseTimer;
 
         /// <summary>Altura atual da cápsula.</summary>
         public float Height;

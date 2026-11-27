@@ -61,12 +61,17 @@ namespace Rogue.Gameplay
         [Tooltip("Depois de colocar o gelo, volta sozinho para a arma anterior.")]
         [SerializeField] private bool returnToPreviousAfterGadget = true;
 
+        [Tooltip("Clique guardado por este tempo se ainda não der para agir (ex.: 4 + clique juntos: coloca o gelo " +
+                 "assim que ele estiver na mão). Vale para pistola, faca e gelo.")]
+        [SerializeField] private float fireBufferTime = 0.2f;
+
         private static readonly Collider[] OverlapBuffer = new Collider[16];
 
         private WeaponBinding[] slots;
         private int currentSlot;
         private int previousSlot;
         private float equipTimer;
+        private float fireBuffer;
         private float equipDuration;
         private float cooldown;
         private float attackTimer;
@@ -208,6 +213,11 @@ namespace Rogue.Gameplay
             bool canAct = cfg != null && CanAct();
             bool firingGun = false;
 
+            // Clique guardado: se não deu para agir neste tick, vale ainda por fireBufferTime.
+            if (input.FirePressed) fireBuffer = fireBufferTime;
+            else fireBuffer = Mathf.Max(0f, fireBuffer - dt);
+            bool firePressed = fireBuffer > 0f;
+
             if (cfg != null)
             {
                 float interval = 1f / Mathf.Max(0.1f, cfg.fireRate);
@@ -219,7 +229,7 @@ namespace Rogue.Gameplay
                         if (input.ReloadPressed && HandsFree() && equipTimer <= 0f)
                             StartReload();
 
-                        bool wantsFire = cfg.automatic ? input.FireHeld : input.FirePressed;
+                        bool wantsFire = cfg.automatic ? input.FireHeld : firePressed;
                         bool canShoot = canAct && !IsReloading;
 
                         if (cfg.automatic)
@@ -240,7 +250,8 @@ namespace Rogue.Gameplay
                             if (magazine[currentSlot] > 0)
                             {
                                 FireHitscan(current);
-                                magazine[currentSlot]--;
+                                if (!cfg.infiniteMagazine) magazine[currentSlot]--; // teste: balas infinitas
+                                fireBuffer = 0f;
                                 if (cfg.automatic) cooldown += interval;
                                 else cooldown = interval;
 
@@ -261,19 +272,21 @@ namespace Rogue.Gameplay
 
                     case WeaponKind.Melee:
                         cooldown = Mathf.Max(0f, cooldown - dt);
-                        if (canAct && input.FirePressed && cooldown <= 0f && attackTimer <= 0f)
+                        if (canAct && firePressed && cooldown <= 0f && attackTimer <= 0f)
                         {
                             StartMelee(cfg);
                             cooldown = interval;
+                            fireBuffer = 0f;
                         }
                         break;
 
                     case WeaponKind.Gadget:
                         cooldown = Mathf.Max(0f, cooldown - dt);
-                        if (canAct && input.FirePressed && cooldown <= 0f &&
+                        if (canAct && firePressed && cooldown <= 0f &&
                             iceWallPlacer != null && iceWallPlacer.TryPlace())
                         {
                             cooldown = interval;
+                            fireBuffer = 0f;
                             LastActionTime = Time.time;
                             if (returnToPreviousAfterGadget && previousSlot != currentSlot)
                                 Equip(previousSlot);

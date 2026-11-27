@@ -71,10 +71,13 @@ namespace Rogue.DebugTools
                 modeLine = "<b>Pendurado:</b> Espaço sobe · Shift/S solta\n";
             else if (s.Mode == MotorMode.LedgeClimb)
                 modeLine = $"<b>Subindo:</b> fase {s.ClimbPhase + 1}/2" + (s.QuickMantle ? " (rápido)" : "") + "\n";
+            else if (s.Mode == MotorMode.GetUp)
+                modeLine = $"<b>Levantando:</b> etapa {s.GetUpPhase}/2 " +
+                           (s.GetUpPhase == 1 ? "(deitado → agachado)" : "(agachado → em pé)") + $" {s.GetUpPhaseTimer:0.0} s\n";
             else if (s.Prone)
-                modeLine = "<b>Deitado (de costas):</b> Ctrl ou Espaço levanta\n";
+                modeLine = "<b>Deitado (de costas, parado):</b> Ctrl ou Espaço levanta\n";
             else if (motor.GetUpSpeedFactor < 0.999f)
-                modeLine = $"<b>Levantando:</b> velocidade {motor.GetUpSpeedFactor * 100f:0}% (normal em {s.GetUpTimer:0.0} s)\n";
+                modeLine = $"<b>Recuperando:</b> velocidade {motor.GetUpSpeedFactor * 100f:0}% (normal em {s.GetUpTimer:0.0} s)\n";
 
             string text =
                 $"<b>Estado:</b> {s.Id}\n" +
@@ -101,7 +104,7 @@ namespace Rogue.DebugTools
             {
                 const string controls =
                     "<b>Controles</b>\n" +
-                    "WASD mover · Espaço pular · Shift agachar (segurar) · Ctrl deitar · C slide (segurar) · Alt cambalhota\n" +
+                    "WASD mover · Espaço pular · Shift agachar (segurar) · Ctrl deitar/levantar · C slide (segurar) · Alt cambalhota\n" +
                     "Bhop: pule para frente e pule de novo até 0,5 s depois de tocar o chão\n" +
                     "No ar: qualquer tecla empurra para aquela direção\n" +
                     "Parede: Shift + Espaço perto da parede (3 s) · Espaço na parede = salto direcional\n" +
@@ -126,7 +129,7 @@ namespace Rogue.DebugTools
             {
                 int slot = weapons.CurrentSlot;
                 int magazine = weapons.GetMagazine(slot);
-                string reserve = cfg.infiniteReserve ? "∞" : weapons.GetReserve(slot).ToString();
+                string reserve = cfg.infiniteReserve || cfg.infiniteMagazine ? "∞" : weapons.GetReserve(slot).ToString();
 
                 if (weapons.IsReloading)
                 {
@@ -134,7 +137,8 @@ namespace Rogue.DebugTools
                 }
                 else
                 {
-                    text = $"{cfg.displayName}\n{magazine} <size=22>/ {reserve}</size>";
+                    string inMagazine = cfg.infiniteMagazine ? "∞" : magazine.ToString();
+                    text = $"{cfg.displayName}\n{inMagazine} <size=22>/ {reserve}</size>";
                     if (magazine == 0) color = Color.red;
                     else if (magazine <= cfg.magazineSize / 4) color = Color.yellow;
                 }
