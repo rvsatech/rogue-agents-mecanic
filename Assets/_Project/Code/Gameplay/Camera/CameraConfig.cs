@@ -22,9 +22,9 @@ namespace Rogue.Gameplay
 
         [Header("Mirando (botão direito)")]
         [Tooltip("Campo de visão mirando (botão direito). Menor que o normal = zoom.")]
-        [Range(30f, 100f)] public float aimFieldOfView = 48f;
-        public float aimDistance = 2.3f;
-        public float aimShoulderOffset = 0.75f;
+        [Range(30f, 100f)] public float aimFieldOfView = 44f;
+        public float aimDistance = 1.45f;
+        public float aimShoulderOffset = 0.62f;
 
         [Tooltip("Quão rápido entra/sai da mira.")]
         public float aimLerpSpeed = 10f;
@@ -86,6 +86,19 @@ namespace Rogue.Gameplay
         [Tooltip("Na parede a câmera se afasta esses metros (vê mais em volta), como no Rogue Agents.")]
         public float wallRunDistanceBoost = 0.9f;
         // Mirar na parede (zoom/luneta) é regra de movimento: MovementConfig.wallRunAllowAim.
+
+        [Tooltip("Na parede o ombro da câmera vai para cá (0 = personagem no meio da tela).")]
+        public float wallRunShoulderOffset = 0.2f;
+
+        [Header("Tremor do tiro (gira a câmera um pouquinho; só visual)")]
+        [Tooltip("Graus por tiro mirando (botão direito).")]
+        public float aimShotTremor = 0.55f;
+
+        [Tooltip("Graus por tiro sem mirar.")]
+        public float hipShotTremor = 0.2f;
+
+        [Tooltip("Quão rápido o tremor some (maior = some mais rápido).")]
+        public float tremorRecovery = 16f;
 
         [Header("Colisão")]
         [Tooltip("Raio usado para impedir a câmera de atravessar paredes.")]

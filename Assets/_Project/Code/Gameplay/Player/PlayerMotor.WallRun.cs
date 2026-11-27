@@ -81,6 +81,7 @@ namespace Rogue.Gameplay
             float speed = Mathf.Max(Vector3.Dot(flat, tangent), config.runSpeed * config.wallRunSpeedFactor * WeaponSpeedMultiplier * GetUpSpeedFactor);
 
             state.Mode = MotorMode.WallRun;
+            state.WallClimbing = false;
             state.WallNormal = normal;
             state.WallTangent = tangent;
             state.WallRunSpeed = speed;
@@ -97,6 +98,12 @@ namespace Rogue.Gameplay
 
         private void SimulateWallRun(in PlayerInputFrame frame, float dt)
         {
+            if (state.WallClimbing)
+            {
+                SimulateWallClimb(frame, dt);
+                return;
+            }
+
             state.WallRunTimer += dt;
             state.WallRunAirTime += dt;
             UpdateHeight(config.standHeight, dt);
@@ -196,6 +203,7 @@ namespace Rogue.Gameplay
             float vy = Mathf.Sqrt(2f * config.gravity * config.wallJumpHeight);
 
             state.Mode = MotorMode.Locomotion;
+            state.WallClimbing = false;
             state.WallRunCooldown = config.wallRunCooldown;
             state.JumpBufferTimer = 0f;
             state.Grounded = false;
@@ -205,8 +213,97 @@ namespace Rogue.Gameplay
             controller.Move(state.Velocity * dt);
         }
 
+        // ===================== Escalar o muro de frente =====================
+
+        /// <summary>Parede bem de frente (para onde as teclas apontam, ou a câmera), perto o bastante.</summary>
+        private bool TryFindClimbableWall(in PlayerInputFrame frame, Vector3 wishDir, out RaycastHit hit)
+        {
+            Vector3 direction = wishDir.sqrMagnitude > 0.01f ? Flat(wishDir).normalized : YawForward(frame);
+            Vector3 origin = transform.position + Vector3.up * (state.Height * 0.5f);
+            if (!Physics.Raycast(origin, direction, out hit, controller.radius + config.wallClimbDetectDistance,
+                    config.environmentMask, QueryTriggerInteraction.Ignore))
+                return false;
+            if (Mathf.Abs(hit.normal.y) > 0.3f) return false;
+            if (IsNonClimbable(hit.collider) || IsNoWallRun(hit.collider)) return false;
+            return Vector3.Dot(-Flat(hit.normal).normalized, direction) > 0.7f;
+        }
+
+        private void StartWallClimb(in RaycastHit hit)
+        {
+            Vector3 normal = Flat(hit.normal).normalized;
+            state.Mode = MotorMode.WallRun;
+            state.WallClimbing = true;
+            state.WallClimbUsed = true;
+            state.WallClimbStartY = transform.position.y;
+            state.WallNormal = normal;
+            state.WallTangent = Vector3.Cross(normal, Vector3.up).normalized;
+            state.WallRunSpeed = 0f;
+            state.WallRunTimer = 0f;
+            state.Velocity = Vector3.up * config.wallClimbSpeed;
+            state.JumpBufferTimer = 0f;
+            state.Grounded = false;
+            state.JumpedSinceGrounded = true;
+            state.Crouching = false;
+        }
+
+        /// <summary>
+        /// Sobe reto até wallClimbMaxHeight. A mão alcançou a borda: sobe pela beirada. Espaço = salto para longe;
+        /// soltou o Shift ou chegou no limite: desgruda e cai.
+        /// </summary>
+        private void SimulateWallClimb(in PlayerInputFrame frame, float dt)
+        {
+            state.WallRunTimer += dt;
+            UpdateHeight(config.standHeight, dt);
+
+            if (state.JumpBufferTimer > 0f && state.WallRunTimer > 0.1f)
+            {
+                WallJump(frame, dt);
+                return;
+            }
+
+            if (state.LedgeCooldown <= 0f && TryFindLedge(-state.WallNormal, out LedgeInfo ledge))
+            {
+                state.WallClimbing = false;
+                StartLedge(ledge);
+                return;
+            }
+
+            float climbed = transform.position.y - state.WallClimbStartY;
+            if (!frame.AimHeld || climbed >= config.wallClimbMaxHeight) // soltou o botão direito: cai
+            {
+                state.Velocity = state.WallNormal * config.wallRunEndPushSpeed + Vector3.up * Mathf.Min(state.Velocity.y, 1f);
+                EndWallRun();
+                SimulateLocomotion(frame, dt);
+                return;
+            }
+
+            Vector3 origin = transform.position + Vector3.up * (state.Height * 0.5f);
+            if (!Physics.Raycast(origin, -state.WallNormal, out RaycastHit hit,
+                    controller.radius + config.wallClimbDetectDistance + 0.2f, config.environmentMask,
+                    QueryTriggerInteraction.Ignore) || Mathf.Abs(hit.normal.y) > 0.3f)
+            {
+                EndWallRun();
+                SimulateLocomotion(frame, dt);
+                return;
+            }
+            state.WallNormal = Flat(hit.normal).normalized;
+            state.WallTangent = Vector3.Cross(state.WallNormal, Vector3.up).normalized;
+
+            float k = Mathf.Clamp01(climbed / Mathf.Max(0.1f, config.wallClimbMaxHeight));
+            float vy = config.wallClimbSpeed * Mathf.Lerp(1f, 0.55f, k);
+            CollisionFlags flags = controller.Move((Vector3.up * vy - state.WallNormal * config.wallStickSpeed) * dt);
+            state.Velocity = Vector3.up * vy;
+
+            if ((flags & CollisionFlags.Above) != 0)
+            {
+                state.Velocity = Vector3.zero;
+                EndWallRun();
+            }
+        }
+
         private void EndWallRun()
         {
+            state.WallClimbing = false;
             state.Mode = MotorMode.Locomotion;
             state.WallRunCooldown = config.wallRunCooldown;
         }

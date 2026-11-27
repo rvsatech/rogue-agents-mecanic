@@ -110,6 +110,11 @@ namespace Rogue.Gameplay
         /// <summary>Última parede usada (não pode repetir a mesma antes de tocar o chão).</summary>
         public Vector3 LastWallNormal;
         public bool HasLastWall;
+        /// <summary>Escalando o muro de frente (modo WallRun, subindo reto).</summary>
+        public bool WallClimbing;
+        public float WallClimbStartY;
+        /// <summary>Já escalou desde que tocou o chão (uma escalada por vez).</summary>
+        public bool WallClimbUsed;
 
         // ---------- Beirada (pendurar / subir) ----------
         public float LedgeTopY;

@@ -180,4 +180,4 @@ MonoBehaviour:
     pitch: {x: 1, y: 1}
     spatialBlend: 0
     maxDistance: 10
-  defaultsVersion: 9
+  defaultsVersion: 10

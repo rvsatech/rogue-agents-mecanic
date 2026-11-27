@@ -26,7 +26,14 @@ namespace Rogue.Gameplay
 
         [Header("Rotação do corpo")]
         [Tooltip("Graus por segundo que o corpo gira. Alto = vira quase na hora.")]
-        [SerializeField] private float turnSpeed = 540f;
+        [SerializeField] private float turnSpeed = 1440f;
+
+        [Tooltip("No ar, o corpo vira para onde as teclas apontam nessa velocidade (graus/s): virada quase instantânea.")]
+        [SerializeField] private float airTurnSpeed = 2400f;
+
+        [Tooltip("Virada suave (como analógico): quanto maior, mais rápido chega na direção nova. 14 = ~0,2 s numa " +
+                 "virada de 90°, girando de verdade (não pula de um lado para o outro).")]
+        [SerializeField] private float turnSharpness = 14f;
 
         [Tooltip("Giro durante a cambalhota (bem rápido: o corpo já rola para o lado certo).")]
         [SerializeField] private float rollTurnSpeed = 3000f;
@@ -122,7 +129,8 @@ namespace Rogue.Gameplay
             InterpolatedPosition = position;
 
             // Modo combate.
-            bool handsBusy = s.Mode == MotorMode.LedgeHang || s.Mode == MotorMode.LedgeClimb || s.Mode == MotorMode.Roll;
+            bool handsBusy = s.Mode == MotorMode.LedgeHang || s.Mode == MotorMode.LedgeClimb || s.Mode == MotorMode.Roll ||
+                             (s.Mode == MotorMode.WallRun && s.WallClimbing);
             bool recentAction = weapons != null && Time.time - weapons.LastActionTime < combatHoldTime;
             WeaponConfig weapon = weapons != null ? weapons.CurrentConfig : null;
             bool gadgetInHand = weapon != null && (weapon.kind == WeaponKind.Gadget || weapon.kind == WeaponKind.Throwable);
@@ -133,6 +141,7 @@ namespace Rogue.Gameplay
             float aimYaw = input != null ? input.Yaw : bodyYaw;
             float targetYaw = bodyYaw;
             float speed = turnSpeed;
+            bool smoothTurn = false; // andando/no ar: giro suave; mirando/rolando/deitado: giro direto
 
             // Correndo para trás atirando: o corpo não vira para a mira (com folga para não ficar trocando).
             Vector3 flatVelocity = new Vector3(s.Velocity.x, 0f, s.Velocity.z);
@@ -151,7 +160,9 @@ namespace Rogue.Gameplay
             switch (s.Mode)
             {
                 case MotorMode.WallRun:
-                    targetYaw = YawOf(s.WallTangent, bodyYaw); // nunca de costas (o tronco gira no animator)
+                    targetYaw = s.WallClimbing
+                        ? YawOf(-s.WallNormal, bodyYaw)      // escalando: de frente para o muro
+                        : YawOf(s.WallTangent, bodyYaw);     // nunca de costas (o tronco gira no animator)
                     break;
                 case MotorMode.LedgeHang:
                 case MotorMode.LedgeClimb:
@@ -180,9 +191,18 @@ namespace Rogue.Gameplay
                     {
                         targetYaw = aimYaw;
                     }
+                    else if (!s.Grounded && motor.LastInput.Move.sqrMagnitude > 0.01f)
+                    {
+                        // No ar: vira na hora para onde as teclas apontam (a velocidade acompanha pelo air strafe).
+                        Vector2 move = motor.LastInput.Move;
+                        targetYaw = aimYaw + Mathf.Atan2(move.x, move.y) * Mathf.Rad2Deg;
+                        speed = airTurnSpeed;
+                        smoothTurn = true;
+                    }
                     else if (s.HorizontalSpeed > 0.3f)
                     {
                         targetYaw = YawOf(new Vector3(s.Velocity.x, 0f, s.Velocity.z), bodyYaw);
+                        smoothTurn = true;
                     }
                     break;
             }
@@ -192,12 +212,27 @@ namespace Rogue.Gameplay
                 bodyYaw = targetYaw;
                 initialized = true;
             }
-            bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, targetYaw, speed * dt);
+            if (smoothTurn)
+            {
+                // Gira rápido no começo e desacelera no fim (como analógico), com limite de velocidade.
+                float delta = Mathf.DeltaAngle(bodyYaw, targetYaw);
+                float step = delta * (1f - Mathf.Exp(-turnSharpness * dt));
+                float cap = speed * dt;
+                bodyYaw += Mathf.Clamp(step, -cap, cap);
+            }
+            else
+            {
+                bodyYaw = Mathf.MoveTowardsAngle(bodyYaw, targetYaw, speed * dt);
+            }
 
             // Inclinação e deslocamento na parede (pés na parede, cabeça para fora).
             float targetLean = 0f;
             float targetOffset = 0f;
-            if (s.Mode == MotorMode.WallRun)
+            if (s.Mode == MotorMode.WallRun && s.WallClimbing)
+            {
+                targetOffset = wallRunVisualOffset; // escalando: colado no muro, sem inclinar
+            }
+            else if (s.Mode == MotorMode.WallRun)
             {
                 float wallOnRight = Vector3.Dot(-s.WallNormal, BodyRight) >= 0f ? 1f : -1f;
                 targetLean = wallOnRight * wallRunLeanAngle; // Z positivo inclina a cabeça para a esquerda

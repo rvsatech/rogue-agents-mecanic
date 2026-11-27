@@ -30,6 +30,15 @@ namespace Rogue.Gameplay
                 return;
             }
 
+            // 1b) Botão direito + Espaço de frente para um muro = escala (uma vez até tocar o chão).
+            if (frame.AimHeld && state.JumpBufferTimer > 0f && !state.WallClimbUsed && state.WallRunCooldown <= 0f &&
+                TryFindClimbableWall(frame, wishDir, out RaycastHit climbHit))
+            {
+                StartWallClimb(climbHit);
+                SimulateWallRun(frame, dt);
+                return;
+            }
+
             // 2) Ctrl no chão = deitar.
             if (frame.ProneTogglePressed && state.Grounded)
             {
@@ -184,8 +193,12 @@ namespace Rogue.Gameplay
 
                 if (!chainAlive)
                 {
+                    // Impulso só no pulo: vai a corrida x boost (não acumula com o que sobrou do pulo anterior).
                     state.SpeedMultiplier = boost;
-                    flat *= boost;
+                    float jumpSpeed = config.runSpeed * WeaponSpeedMultiplier * GetUpSpeedFactor * boost;
+                    Vector3 direction = flat.sqrMagnitude > 0.25f ? flat.normalized : WishDirection(frame);
+                    if (direction.sqrMagnitude > 0.01f)
+                        flat = direction.normalized * Mathf.Max(flat.magnitude, jumpSpeed);
                 }
                 else if (config.stackBhop)
                 {

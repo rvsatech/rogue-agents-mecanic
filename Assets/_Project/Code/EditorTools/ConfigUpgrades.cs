@@ -13,10 +13,10 @@ namespace Rogue.EditorTools
         public const string ConfigFolder = "Assets/_Project/Config";
         public const string WeaponConfigFolder = "Assets/_Project/Config/Weapons";
 
-        public const int MovementVersion = 9;
-        public const int WeaponVersion = 9;
+        public const int MovementVersion = 10;
+        public const int WeaponVersion = 10;
         public const int IceWallVersion = 2;
-        public const int CameraVersion = 2;
+        public const int CameraVersion = 3;
 
         /// <summary>CameraConfig. Retorna true se mudou algo.</summary>
         public static bool UpgradeCamera(CameraConfig config)
@@ -34,6 +34,18 @@ namespace Rogue.EditorTools
             {
                 // v2 (estilo Rogue Agents): na parede a câmera se afasta (sem zoom: MovementConfig.wallRunAllowAim).
                 config.wallRunDistanceBoost = 0.9f;
+            }
+
+            if (config.defaultsVersion < 3)
+            {
+                // v3: mira mais perto do personagem; tremor no tiro; na parede o personagem fica mais no meio da tela.
+                config.aimDistance = 1.45f;
+                config.aimShoulderOffset = 0.62f;
+                config.aimFieldOfView = 44f;
+                config.wallRunShoulderOffset = 0.2f;
+                config.aimShotTremor = 0.55f;
+                config.hipShotTremor = 0.2f;
+                config.tremorRecovery = 16f;
             }
 
             config.defaultsVersion = CameraVersion;
@@ -120,6 +132,25 @@ namespace Rogue.EditorTools
                 config.wallRunAllowAim = false;    // na parede não mira (sem zoom e sem luneta)
             }
 
+            if (config.defaultsVersion < 10)
+            {
+                // v10: +15% de velocidade, virada e air strafe leves, pulo com mais impulso, cambalhota sem parada.
+                config.runSpeed = 6.9f;
+                config.crouchSpeed = 3f;
+                config.groundAcceleration = 80f;
+                config.groundDeceleration = 80f;
+                config.airStrafeAcceleration = 45f;
+                config.forwardJumpBoost = 0.35f;
+                config.rollDistance = 4.2f;
+                config.rollDuration = 0.6f;
+                config.rollJumpCancelTime = 0.3f;
+                config.rollActionCancelTime = 0.3f;
+                config.rollMoveCancelTime = 0.48f;
+                config.wallClimbSpeed = 4f;
+                config.wallClimbMaxHeight = 1.8f;
+                config.wallClimbDetectDistance = 0.6f;
+            }
+
             config.defaultsVersion = MovementVersion;
             return true;
         }
@@ -183,6 +214,15 @@ namespace Rogue.EditorTools
             // v9: visual das armas — clarão por arma, cápsulas, mecanismo (ferrolho da pistola, bombeada da 12,
             // ferrolho da AWP) e recarga da 12 cartucho por cartucho.
             if (config.defaultsVersion < 9) SetWeaponVisualsV9(config, slot);
+
+            // v10: troca de arma mais lenta e com corpo (guarda, saca e a arma assenta).
+            if (config.defaultsVersion < 10)
+            {
+                if (slot == WeaponSlot.Primary || slot == WeaponSlot.Sniper || slot == WeaponSlot.Shotgun)
+                    config.equipTime = 0.75f;
+                else if (slot == WeaponSlot.Secondary)
+                    config.equipTime = 0.6f;
+            }
 
             config.defaultsVersion = WeaponVersion;
             return true;

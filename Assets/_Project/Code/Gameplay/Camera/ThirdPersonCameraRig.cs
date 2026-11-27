@@ -35,6 +35,7 @@ namespace Rogue.Gameplay
         private float pivotHeight = -1f;
         private float aimBlend;
         private float wallRunPull;
+        private float tremorPitch, tremorYaw;
         private float scopeBlend;
         private float scopeFieldOfView = 16f;
 
@@ -85,15 +86,19 @@ namespace Rogue.Gameplay
 
             // Mira (botão direito).
             bool onWall = motor != null && motor.State.Mode == MotorMode.WallRun;
-            bool aimBlockedOnWall = onWall && motor.Config != null && !motor.Config.wallRunAllowAim;
+            // Deslizando, rolando, escalando ou na parede: o zoom sai (mesma regra da arma).
+            bool aimBlocked = weapons != null ? weapons.AimBlocked
+                : onWall && motor.Config != null && !motor.Config.wallRunAllowAim;
             bool aiming = motor != null && motor.LastInput.AimHeld && (weapons == null || weapons.CanAimZoom) &&
-                          !aimBlockedOnWall; // na parede: sem zoom
+                          !aimBlocked;
             aimBlend = Mathf.MoveTowards(aimBlend, aiming ? 1f : 0f, config.aimLerpSpeed * dt);
             float distance = Mathf.Lerp(config.distance, config.aimDistance, aimBlend);
             // Na parede a câmera se afasta devagar (e volta devagar ao sair).
             wallRunPull = Mathf.MoveTowards(wallRunPull, onWall ? config.wallRunDistanceBoost : 0f, 2.5f * dt);
             distance += wallRunPull;
             float shoulder = Mathf.Lerp(config.shoulderOffset, config.aimShoulderOffset, aimBlend);
+            if (config.wallRunDistanceBoost > 0f)
+                shoulder = Mathf.Lerp(shoulder, config.wallRunShoulderOffset, wallRunPull / config.wallRunDistanceBoost);
             float fov = Mathf.Lerp(config.fieldOfView, config.aimFieldOfView, aimBlend);
 
             UpdateFeel(dt, aimBlend, ref fov);
@@ -144,7 +149,11 @@ namespace Rogue.Gameplay
                 float k = Mathf.Clamp01(shakeTimer / ShakeTime);
                 desired += rotation * shakeDirection * (shakeStrength * k * k * (1f - scopeBlend));
             }
-            Quaternion finalRotation = Quaternion.Euler(input.Pitch, input.Yaw, roll * (1f - scopeBlend));
+            // Tremor do tiro: gira um pouquinho e volta (mais forte mirando). Só a câmera, a mira não muda.
+            float recover = Mathf.Exp(-config.tremorRecovery * dt);
+            tremorPitch *= recover;
+            tremorYaw *= recover;
+            Quaternion finalRotation = Quaternion.Euler(input.Pitch + tremorPitch, input.Yaw + tremorYaw, roll * (1f - scopeBlend));
 
             transform.SetPositionAndRotation(desired, finalRotation);
             cam.fieldOfView = fov;
@@ -171,7 +180,7 @@ namespace Rogue.Gameplay
 
             // Parede: inclina para longe dela.
             float targetRoll = 0f;
-            if (s.Mode == MotorMode.WallRun)
+            if (s.Mode == MotorMode.WallRun && !s.WallClimbing)
             {
                 Vector3 cameraRight = Quaternion.Euler(0f, input.Yaw, 0f) * Vector3.right;
                 targetRoll = (Vector3.Dot(-s.WallNormal, cameraRight) >= 0f ? 1f : -1f) * config.wallRunTilt;
@@ -212,6 +221,13 @@ namespace Rogue.Gameplay
                                     (weapons.IsAiming ? 0.6f : 1f);
                     shakeDirection = (Vector3.back * 0.7f + Random.insideUnitSphere * 0.5f).normalized;
                     shakeTimer = ShakeTime;
+
+                    float tremor = Mathf.Lerp(config.hipShotTremor, config.aimShotTremor, Mathf.Max(aimBlend, scopeBlend)) *
+                                   (0.6f + weapon.recoilDistance * 4f);
+                    tremorPitch -= tremor * Random.Range(0.5f, 1f);
+                    tremorYaw += tremor * Random.Range(-0.7f, 0.7f);
+                    tremorPitch = Mathf.Clamp(tremorPitch, -3f, 3f);
+                    tremorYaw = Mathf.Clamp(tremorYaw, -3f, 3f);
                 }
             }
             if (shakeTimer > 0f) shakeTimer -= dt;

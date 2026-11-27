@@ -24,6 +24,10 @@ namespace Rogue.Gameplay
         [Tooltip("Parte do tempo de sacar usada para guardar no coldre a arma anterior (0,4 = 40%).")]
         [Range(0f, 0.8f)] [SerializeField] private float holsterShare = 0.4f;
 
+        [Tooltip("Trocando de arma: quanto o peito inclina para frente no meio da troca (graus).")]
+        [SerializeField] private float swapChestDip = 9f;
+        private bool drawSettled = true;
+
         [Header("Coice da arma (mola)")]
         [Tooltip("Mola do coice: maior = volta mais rápido.")]
         [SerializeField] private float kickStiffness = 420f;
@@ -182,6 +186,17 @@ namespace Rogue.Gameplay
             float putAway = holster >= 0 ? Mathf.Clamp01(progress / Mathf.Max(0.01f, split)) : 1f;
             float draw = equipping ? Mathf.Clamp01((progress - split) / Mathf.Max(0.01f, 1f - split)) : 1f;
             float inHand = 1f - stowWeight; // pendurado/rolando: a arma vai para o coldre
+
+            // Troca de arma com corpo: o peito abaixa um pouco enquanto guarda/saca e a arma "assenta" no fim.
+            if (equipping && chest != null)
+                chest.rotation = Quaternion.AngleAxis(swapChestDip * Mathf.Sin(progress * Mathf.PI), right) * chest.rotation;
+            if (equipping && draw < 0.9f) drawSettled = false;
+            else if (!drawSettled && (!equipping || draw >= 0.97f))
+            {
+                drawSettled = true;
+                if (cfg != null && cfg.kind == WeaponKind.Hitscan)
+                    Nudge(new Vector3(0f, -0.03f, -0.015f), new Vector3(7f, 0f, 4f)); // cano desce e volta (mola)
+            }
 
             // Recarregando: a arma vem para a frente do peito (mesmo sem estar mirando).
             bool isGun = cfg != null && cfg.kind == WeaponKind.Hitscan;
@@ -412,7 +427,7 @@ namespace Rogue.Gameplay
                 lastShotSeen = weapons.LastShotTime;
                 if (cfg != null && cfg.kind == WeaponKind.Hitscan && weapons.LastShotSlot == weapons.CurrentSlot)
                 {
-                    float aim = weapons.IsAiming ? cfg.recoilAimFactor : 1f;
+                    float aim = weapons.IsAiming ? cfg.recoilAimFactor : weapons.IsSliding ? 1.6f : 1f; // deslizando: coice maior
                     float back = cfg.recoilDistance * aim;
                     float tilt = cfg.recoilVisualTilt * aim;
                     Nudge(new Vector3(Random.Range(-0.12f, 0.12f) * back, 0.2f * back, -back),

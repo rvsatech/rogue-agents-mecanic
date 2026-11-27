@@ -47,6 +47,12 @@ namespace Rogue.Gameplay
         [SerializeField] private string crouchIdleClip = "Crouch_Idle_Loop";
         [SerializeField] private string crouchMoveClip = "Crouch_Fwd_Loop";
         [SerializeField] private string airClip = "Jump_Loop";
+        [Tooltip("Pulo correndo: pose de passada aberta (uma perna na frente, outra atrás), tirada da corrida e quase " +
+                 "parada no ar. Abaixo de leapMinSpeed (ou caindo de alto) usa airClip.")]
+        [SerializeField] private float leapPoseTime = 0.17f;
+        [SerializeField] private float leapClipSpeed = 0.2f;
+        [SerializeField] private float leapMinSpeed = 3.5f;
+        [SerializeField] private float leapMaxFallSpeed = 9f;
         [SerializeField] private string wallRunClip = "Sprint_Loop";
         [SerializeField] private string hangClip = "Jump_Loop";
         [SerializeField] private string climbClip = "Crouch_Idle_Loop";
@@ -57,7 +63,7 @@ namespace Rogue.Gameplay
 
         [Tooltip("Trecho da animação de cambalhota usado (segundos): pula a preparação e o levantar lento.")]
         [SerializeField] private float rollClipStart = 0.42f;
-        [SerializeField] private float rollClipEnd = 1.25f;
+        [SerializeField] private float rollClipEnd = 1.0f; // termina no fim do giro: o levantar vira a corrida (mistura)
 
         [Header("Animações novas (UAL2 — usadas se existirem no modelo)")]
         [Tooltip("Clipes adicionados ao modelo ao começar (o menu Rogue liga os da Universal Animation Library 2).")]
@@ -163,6 +169,12 @@ namespace Rogue.Gameplay
         [Tooltip("Correndo na parede em combate: quanto o tronco gira para a mira (o corpo fica ao longo da parede).")]
         [SerializeField] private float wallRunTorsoTwist = 90f;
 
+        [Tooltip("Correndo com a parede à esquerda: a mão esquerda vai na parede (a direita segura a arma).")]
+        [SerializeField] private bool wallRunHandOnWall = true;
+
+        [Tooltip("Escalando o muro: passos por segundo (mãos e pés alternando).")]
+        [SerializeField] private float wallClimbStepRate = 2.6f;
+
         [Header("Slide")]
         [Tooltip("Deslizando atirando: quanto o tronco gira para a mira, no máximo (as pernas ficam no slide). " +
                  "A arma alcança 30° além disso; mirando mais para trás, a cabeça e o braço viram para trás.")]
@@ -213,6 +225,10 @@ namespace Rogue.Gameplay
         private float oneShotAge;
         private float oneShotCrouchGrace;
         private const string ThrowLayerState = "Arremesso_Tronco";
+        private const string LeapState = "Salto_Corrida";
+        private float climbWeight;
+        private float climbPhase;
+        private float wallHandWeight;
         private AnimationState throwState;
         private float throwWeight;
         private float throwTime;
@@ -352,6 +368,15 @@ namespace Rogue.Gameplay
                 if (state != null) state.wrapMode = WrapMode.ClampForever;
             }
 
+            // Pulo correndo: cópia da corrida com outro nome (pose de passada aberta, quase parada no ar).
+            AnimationState sprintSource = HasClip(sprintClip) ? animationComponent[sprintClip] : null;
+            if (sprintSource != null && sprintSource.clip != null && animationComponent[LeapState] == null)
+            {
+                animationComponent.AddClip(sprintSource.clip, LeapState);
+                AnimationState leap = animationComponent[LeapState];
+                if (leap != null) leap.wrapMode = WrapMode.Loop;
+            }
+
             // Sem as animações novas, o slide e a subida usam as poses feitas por código (como antes).
             slideClipPose = HasClip(slideLoopClip);
             mantleClipPose = HasClip(mantleClip);
@@ -483,7 +508,13 @@ namespace Rogue.Gameplay
             slideWeight = Mathf.MoveTowards(slideWeight, s.Mode == MotorMode.Slide ? 1f : 0f, dt / 0.08f);
             hangWeight = Mathf.MoveTowards(hangWeight, hanging ? 1f : 0f, dt / 0.1f);
             combatWeight = Mathf.MoveTowards(combatWeight, combat ? 1f : 0f, dt / 0.1f);
-            stowWeight = Mathf.MoveTowards(stowWeight, hanging || rolling ? 1f : 0f, dt / 0.1f);
+            bool climbing = s.Mode == MotorMode.WallRun && s.WallClimbing;
+            stowWeight = Mathf.MoveTowards(stowWeight, hanging || rolling || climbing ? 1f : 0f, dt / 0.1f);
+            climbWeight = Mathf.MoveTowards(climbWeight, climbing ? 1f : 0f, dt / 0.1f);
+            if (climbing) climbPhase += dt * wallClimbStepRate;
+            bool wallOnLeft = s.Mode == MotorMode.WallRun && !s.WallClimbing && visual != null &&
+                              Vector3.Dot(-s.WallNormal, visual.BodyRight) < 0f;
+            wallHandWeight = Mathf.MoveTowards(wallHandWeight, wallRunHandOnWall && wallOnLeft ? 1f : 0f, dt / 0.12f);
             bool reloading = weapons != null && weapons.IsReloading;
             reloadWeight = Mathf.MoveTowards(reloadWeight, reloading ? 1f : 0f, dt / 0.12f);
             bool backShooting = visual != null && visual.BackShooting;
@@ -558,6 +589,12 @@ namespace Rogue.Gameplay
                     if (lastMode != MotorMode.Roll) restartAt = rollClipStart;
                     break;
                 case MotorMode.WallRun:
+                    if (s.WallClimbing)
+                    {
+                        clip = hangClip; // base parada; mãos e pés alternam no muro por IK (ClimbPose)
+                        clipSpeed = 0.5f;
+                        break;
+                    }
                     clip = wallRunClip;
                     clipSpeed = Mathf.Max(0.8f, s.WallRunSpeed / sprintAnimationSpeed);
                     break;
@@ -612,7 +649,14 @@ namespace Rogue.Gameplay
                     }
                     else if (!s.Grounded)
                     {
-                        clip = airClip;
+                        // Pulo correndo: passada aberta (pernas uma na frente e outra atrás). Caindo de alto: airClip.
+                        bool leap = speed >= leapMinSpeed && s.Velocity.y > -leapMaxFallSpeed && HasClip(LeapState);
+                        clip = leap ? LeapState : airClip;
+                        if (leap)
+                        {
+                            clipSpeed = leapClipSpeed;
+                            if (currentClip != LeapState) animationComponent[LeapState].time = leapPoseTime;
+                        }
                     }
                     else if (s.Crouching)
                     {
@@ -819,6 +863,14 @@ namespace Rogue.Gameplay
             if (hangWeight > 0f)
                 HandsOnLedge(s, up);
 
+            // Escalando o muro: mãos e pés alternando na parede.
+            if (climbWeight > 0f)
+                ClimbPose(s, root, up);
+
+            // Correndo na parede: mão esquerda na parede (a direita segura a arma).
+            if (wallHandWeight > 0f && s.Mode == MotorMode.WallRun)
+                HandOnWall(s, forward, up);
+
             DetectFootsteps(s, root);
         }
 
@@ -901,6 +953,47 @@ namespace Rogue.Gameplay
 
             TwoBoneIK.Solve(rUpper, rFore, rHand, rightTarget, rightPole, hangWeight);
             TwoBoneIK.Solve(lUpper, lFore, lHand, leftTarget, leftPole, hangWeight);
+        }
+
+        /// <summary>Escalando: mãos alternam no alto do muro, pés alternam embaixo (joelhos dobrados para fora).</summary>
+        private void ClimbPose(in PlayerSimState s, Vector3 root, Vector3 up)
+        {
+            Vector3 n = s.WallNormal;
+            Vector3 wallRight = Vector3.Cross(up, -n);
+            Vector3 probe = root + up * 1.2f + n * 0.3f;
+            Vector3 wall = Physics.Raycast(probe, -n, out RaycastHit hit, 1.5f, ~0, QueryTriggerInteraction.Ignore)
+                ? hit.point + n * 0.04f
+                : root - n * 0.4f;
+            wall.y = root.y;
+
+            float a = Mathf.Sin(climbPhase * Mathf.PI * 2f) * 0.14f;
+            float w = climbWeight;
+            if (rUpper != null)
+                TwoBoneIK.Solve(rUpper, rFore, rHand, wall + up * (1.85f + a) + wallRight * 0.22f,
+                    rUpper.position - up * 0.4f + n * 0.25f + wallRight * 0.35f, w);
+            if (lUpper != null)
+                TwoBoneIK.Solve(lUpper, lFore, lHand, wall + up * (1.85f - a) - wallRight * 0.22f,
+                    lUpper.position - up * 0.4f + n * 0.25f - wallRight * 0.35f, w);
+            if (rThigh != null)
+                TwoBoneIK.Solve(rThigh, rShin, rFoot, wall + up * (0.45f - a) + wallRight * 0.16f + n * 0.04f,
+                    rThigh.position + n * 0.7f + up * 0.2f + wallRight * 0.25f, w);
+            if (lThigh != null)
+                TwoBoneIK.Solve(lThigh, lShin, lFoot, wall + up * (0.45f + a) - wallRight * 0.16f + n * 0.04f,
+                    lThigh.position + n * 0.7f + up * 0.2f - wallRight * 0.25f, w);
+        }
+
+        /// <summary>Correndo na parede (à esquerda): a mão esquerda encosta na parede um pouco à frente do ombro.</summary>
+        private void HandOnWall(in PlayerSimState s, Vector3 forward, Vector3 up)
+        {
+            if (lUpper == null || lFore == null || lHand == null) return;
+            Vector3 n = s.WallNormal;
+            Vector3 shoulder = lUpper.position;
+            Vector3 target = Physics.Raycast(shoulder, -n, out RaycastHit hit, 1.2f, ~0, QueryTriggerInteraction.Ignore)
+                ? hit.point + n * 0.04f
+                : shoulder - n * 0.45f;
+            target += forward * 0.22f + up * 0.08f;
+            Vector3 pole = lFore.position - up * 0.4f - forward * 0.25f + n * 0.2f;
+            TwoBoneIK.Solve(lUpper, lFore, lHand, target, pole, wallHandWeight);
         }
 
         // ===================== Utilidades =====================

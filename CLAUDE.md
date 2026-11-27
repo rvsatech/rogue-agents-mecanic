@@ -107,19 +107,21 @@ O Shift é compartilhado de propósito: sozinho agacha; com Espaço perto de uma
 O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só toque (cambalhota).
 
 ## Especificação das mecânicas
-1. **Base** (ritmo do Rogue Agents, v9): WASD relativo à câmera, corrida a **6 m/s**, agachado 2,6 m/s.
-   Aceleração 40 / freada 50 m/s² (~0,15 s para correr, ~0,12 s para parar: tem peso sem escorregar), corpo
-   vira a 540°/s e as animações trocam em 0,18 s. HUD de debug.
-2. **Pulo**: não reduz velocidade; pular para frente dá **+25%** (impulso para frente), gravidade 25; **bhop**: pular de novo até **0,5 s** depois de tocar
+1. **Base** (v10): WASD relativo à câmera, corrida a **6,9 m/s**, agachado 3 m/s. Aceleração/freada 80 m/s²
+   (~0,09 s), corpo vira a 1440°/s (no ar, 2400°/s para onde as teclas apontam) e as animações trocam em 0,18 s.
+   HUD de debug.
+2. **Pulo**: pular para frente vai a **corrida +35%** só no ar (ao pousar volta à corrida: pular é vantajoso, mas o
+   impulso não fica no chão), gravidade 25; correndo,
+   a pose no ar é uma passada aberta (cópia da corrida quase parada, `Salto_Corrida`); **bhop**: pular de novo até **0,5 s** depois de tocar
    o chão mantém o bônus (não acumula; opção `stackBhop`). Coyote time e jump buffer.
 3. **Air strafe estilo Valorant** (por eixo, relativo à câmera): soltar as teclas mantém o impulso; A/D mexem só na
    velocidade lateral e W/S só na da frente. Correndo + pulo + só A = diagonal (~50°). `airStrafeAcceleration` = 14.
 4. **Agachar (segurar Shift)**: só no chão; animação real (Crouch_Idle/Crouch_Fwd); só levanta com espaço acima.
-5. **Cambalhota (Alt)**: 8 direções (teclas no momento do toque), **4,5 m em 0,75 s** na mesma velocidade do começo
-   ao fim: termina e **sai correndo na hora**. Corpo vira para a direção, passa agachado, não atira rolando.
-   **Saídas sem esperar levantar**: Espaço a partir de 0,35 s (com Shift vai para a parede); C (slide) e Alt (outra
-   cambalhota) a partir de 0,4 s; virar para outro lado, atirar ou mirar a partir de 0,55 s. Espera entre
-   cambalhotas 0,15 s. Animação `Roll` (trecho 0,42–1,25 s).
+5. **Cambalhota (Alt)**: 8 direções (teclas no momento do toque), **4,2 m em 0,6 s** na velocidade da corrida.
+   Corpo vira para a direção, passa agachado, não atira rolando. **Sem parada no fim**: a partir de 0,48 s (fim do
+   giro) qualquer tecla de andar, tiro ou mira já sai correndo; Espaço (com Shift: parede), C (slide) e Alt (outra
+   cambalhota) a partir de 0,3 s. Espera entre cambalhotas 0,15 s. Animação `Roll` (trecho 0,42–1,0 s: o levantar
+   vira a mistura com a corrida).
 6. **Slide (segurar C)**: precisa estar correndo (≥ 3 m/s). Desliza **enquanto segura**, até no máximo **5 m**
    (comprimento do túnel azul); soltar C termina. Direção travada. Começa em 115% e cai até a velocidade agachado.
    Segurar C parado = agachar. Pulo cancela. **Atira deslizando**: o corpo e as pernas ficam na direção do slide e só o
@@ -133,7 +135,11 @@ O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só t
    `NonClimbable` nem na barreira (`noWallRunMask`). **O corpo fica sempre ao longo da parede**, mesmo virando a
    câmera ou atirando: só o tronco gira para a mira (até 90°) — nunca fica de costas. **Câmera na parede**: se
    afasta 0,9 m (`CameraConfig.wallRunDistanceBoost`) e o botão direito **não mira** — sem zoom de ombro e sem
-   luneta; o tiro funciona normal (`MovementConfig.wallRunAllowAim`).
+   luneta; o tiro funciona normal (`MovementConfig.wallRunAllowAim`). Na parede o personagem fica mais no meio
+   da tela (`wallRunShoulderOffset`). Parede à esquerda: a mão esquerda encosta nela (IK), a direita segura a arma.
+   **Escalar muro (botão direito + Espaço de frente; soltar o botão direito = cai)**: sobe reto a 4 m/s até 1,8 m (+ alcance da mão = muros de ~3,9 m),
+   uma vez até tocar o chão; a mão alcançou a borda = sobe pela beirada; Espaço = salto para longe.
+   Arma no coldre, mãos e pés alternando por IK (`ClimbPose`).
 8. **Beirada**: no ar, de frente para o bloco, agarra se a mão alcançar (`ledgeMaxReach` 2,1 m acima do pé; com o pulo
    alcança ~3,35 m: bloco de 3 m sim, 3,5 m não). Até 1,5 m acima do pé sobe direto; mais alto fica **pendurado com
    as mãos** (Espaço sobe, Shift/S solta). Bloco roxo (`NonClimbable`) e alvos não podem ser agarrados.
@@ -308,6 +314,10 @@ O Alt não pode ser segurado (abre o menu da Unity no Editor), por isso é só t
 - Armas guardadas ficam nos coldres: primária (UMP, AWP ou a 12) nas costas na diagonal (cabo atrás do ombro
   direito, cano para baixo à esquerda), pistola na coxa, faca na cintura, gelo no cinto, granadas no cinto na frente,
   kit médico na bolsa atrás do quadril.
+
+**Mira (botão direito)**: anda 15% mais devagar; o zoom sai deslizando, rolando, escalando e na parede.
+Deslizando o tiro espalha 2x e o coice é maior. O corpo gira suave (como analógico) andando e no ar
+(`PlayerVisual.turnSharpness`).
 
 ## Princípio de "zero delay" (fluido, com um pouco de peso)
 Nenhuma ação trava o controle esperando animação. Input buffer curto, transições no mesmo tick e cancelamentos

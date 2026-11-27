@@ -25,13 +25,13 @@ namespace Rogue.Gameplay
 
         [Header("Chão")]
         [Tooltip("Velocidade de corrida normal, em metros por segundo.")]
-        public float runSpeed = 6f; // ritmo do Rogue Agents: mais lento que antes (7,475)
+        public float runSpeed = 6.9f; // ritmo Rogue Agents (6) + 15%
 
         [Tooltip("Quão rápido chega na velocidade máxima (m/s²). 40 = ~0,15 s até correr: tem peso, mas responde.")]
-        public float groundAcceleration = 40f;
+        public float groundAcceleration = 80f;
 
         [Tooltip("Quão rápido para ao soltar as teclas (m/s²). 50 = para em ~0,12 s, sem escorregar.")]
-        public float groundDeceleration = 50f;
+        public float groundDeceleration = 80f;
 
         [Tooltip("Força que mantém o personagem grudado no chão em descidas.")]
         public float groundStickForce = 2f;
@@ -52,7 +52,7 @@ namespace Rogue.Gameplay
 
         [Header("Bônus de pulo para frente / Bhop")]
         [Tooltip("0.15 = +15% de velocidade ao pular para frente.")]
-        [Range(0f, 1f)] public float forwardJumpBoost = 0.25f;
+        [Range(0f, 1f)] public float forwardJumpBoost = 0.35f;
 
         [Tooltip("Quanto do W precisa estar apertado para contar como 'para frente'.")]
         [Range(0.1f, 1f)] public float forwardInputThreshold = 0.5f;
@@ -68,7 +68,7 @@ namespace Rogue.Gameplay
 
         [Header("Ar / Air strafe (estilo Valorant)")]
         [Tooltip("Força com que uma tecla empurra o personagem no ar (m/s²). Maior = muda de direção mais rápido no ar.")]
-        public float airStrafeAcceleration = 14f;
+        public float airStrafeAcceleration = 45f;
 
         [Tooltip("Velocidade total máxima no ar em relação à corrida. 1 = diagonal não fica mais rápida.")]
         [Range(1f, 1.5f)] public float airMaxSpeedFactor = 1.1f;
@@ -78,7 +78,7 @@ namespace Rogue.Gameplay
         public float crouchHeight = 1.1f;
 
         [Tooltip("Velocidade andando agachado. O modo xiu (segurar X) anda nesta mesma velocidade, sem barulho de passo.")]
-        public float crouchSpeed = 2.6f;
+        public float crouchSpeed = 3f;
 
         [Tooltip("Metros por segundo que a altura da cápsula muda ao agachar/levantar.")]
         public float heightChangeSpeed = 8f;
@@ -118,10 +118,10 @@ namespace Rogue.Gameplay
 
         [Header("Cambalhota (Alt)")]
         [Tooltip("Distância da cambalhota, em metros.")]
-        public float rollDistance = 4.5f;
+        public float rollDistance = 4.2f;
 
         [Tooltip("Duração da cambalhota, em segundos (a animação acompanha: 0,8 s = quase a velocidade natural dela).")]
-        public float rollDuration = 0.75f;
+        public float rollDuration = 0.6f;
 
         [Tooltip("Velocidade no fim em relação ao início (1 = mesma velocidade até o fim: sai correndo na hora).")]
         [Range(0.1f, 1f)] public float rollEndSpeedFactor = 1f;
@@ -133,13 +133,13 @@ namespace Rogue.Gameplay
         public float rollBufferTime = 0.15f;
 
         [Tooltip("A partir desse tempo da cambalhota, Espaço já cancela em pulo (ou parede, com Shift).")]
-        public float rollJumpCancelTime = 0.35f;
+        public float rollJumpCancelTime = 0.3f;
 
         [Tooltip("A partir desse tempo, C emenda um slide e Alt emenda outra cambalhota (sem esperar levantar).")]
-        public float rollActionCancelTime = 0.4f;
+        public float rollActionCancelTime = 0.3f;
 
-        [Tooltip("A partir desse tempo, virar para outro lado, atirar ou mirar já sai da cambalhota correndo.")]
-        public float rollMoveCancelTime = 0.55f;
+        [Tooltip("A partir desse tempo (fim do giro, antes de levantar), qualquer tecla de andar, atirar ou mirar já sai correndo.")]
+        public float rollMoveCancelTime = 0.48f;
 
         [Header("Wall run (Shift + Espaço)")]
         [Tooltip("Tempo máximo correndo na parede (segundos). Vale para a SOMA de todas as paredes até tocar o chão: " +
@@ -184,6 +184,17 @@ namespace Rogue.Gameplay
 
         [Tooltip("Desligado (como no Rogue Agents): na parede o botão direito não mira — sem zoom de ombro e sem luneta. O tiro funciona normal.")]
         public bool wallRunAllowAim = false;
+
+        [Header("Escalar muro de frente (botão direito + Espaço de frente para a parede)")]
+        [Tooltip("Velocidade de subida (m/s). Diminui um pouco perto do limite.")]
+        public float wallClimbSpeed = 4f;
+
+        [Tooltip("Quanto sobe no máximo (m). Com a mão alcançando a beirada (ledgeMaxReach 2,1 m), dá para muros de " +
+                 "até ~3,9 m (uns 3 pulos). Uma escalada por vez até tocar o chão.")]
+        public float wallClimbMaxHeight = 1.8f;
+
+        [Tooltip("Distância (além do corpo) em que a parede da frente conta.")]
+        public float wallClimbDetectDistance = 0.6f;
 
         [Header("Beirada: pendurar e subir")]
         [Tooltip("Altura máxima (a partir do pé) que a mão alcança. Com o pulo de 1,25 m, alcança blocos de até ~3,3 m.")]

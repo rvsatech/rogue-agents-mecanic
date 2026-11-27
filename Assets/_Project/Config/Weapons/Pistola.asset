@@ -17,7 +17,7 @@ MonoBehaviour:
   kind: 0
   moveSpeedMultiplier: 1.1
   firingGroundSpeedPenalty: 0.2
-  equipTime: 0.5
+  equipTime: 0.6
   automatic: 0
   fireRate: 6.5
   damage: 20
@@ -179,4 +179,4 @@ MonoBehaviour:
     pitch: {x: 0.95, y: 1.05}
     spatialBlend: 1
     maxDistance: 35
-  defaultsVersion: 9
+  defaultsVersion: 10

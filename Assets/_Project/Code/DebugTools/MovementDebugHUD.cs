@@ -24,7 +24,7 @@ namespace Rogue.DebugTools
         /// Versão da cena montada pelo menu Rogue. Sobe quando a cena ganha peças novas (sons, layers, armas...).
         /// Se a cena aberta for mais velha, o HUD mostra um aviso vermelho.
         /// </summary>
-        public const int CurrentSceneVersion = 12;
+        public const int CurrentSceneVersion = 13;
 
         [Tooltip("Preenchido pelo menu Rogue ao montar a cena (não mexer).")]
         [SerializeField] private int builtSceneVersion;
@@ -161,7 +161,14 @@ namespace Rogue.DebugTools
             Color previousColor = GUI.color;
             GUI.color = recentHead ? new Color(1f, 0.85f, 0.15f) : recentHit ? Color.red : Color.white;
             if (weapons == null || !weapons.IsScoped) // na luneta a mira é a da luneta
-                GUI.Label(new Rect(Screen.width * 0.5f - 15, Screen.height * 0.5f - 15, 30, 30), recentHit ? "x" : "+", crosshairStyle);
+            {
+                // Tremor da mira logo depois do tiro (mais forte mirando).
+                Vector2 jitter = Vector2.zero;
+                if (weapons != null && Time.time - weapons.LastShotTime < 0.1f)
+                    jitter = UnityEngine.Random.insideUnitCircle * (weapons.IsAiming ? 3f : 1.5f);
+                GUI.Label(new Rect(Screen.width * 0.5f - 15 + jitter.x, Screen.height * 0.5f - 15 + jitter.y, 30, 30),
+                    recentHit ? "x" : "+", crosshairStyle);
+            }
             GUI.color = previousColor;
 
             DrawAmmo();

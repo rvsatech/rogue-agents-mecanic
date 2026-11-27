@@ -135,6 +135,8 @@ namespace Rogue.Gameplay
             state.JumpedSinceGrounded = false;
             state.HasLastWall = false; // pode usar a mesma parede de novo
             state.WallRunAirTime = 0f; // tempo de parede volta a valer
+            state.WallClimbUsed = false; // pode escalar de novo
+            state.SpeedMultiplier = 1f;  // o impulso do pulo vale só no ar: no chão volta à corrida
         }
 
         private MovementStateId ResolveStateId()

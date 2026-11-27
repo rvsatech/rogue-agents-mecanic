@@ -22,25 +22,25 @@ MonoBehaviour:
   noWallRunMask:
     serializedVersion: 2
     m_Bits: 4096
-  runSpeed: 7.475
-  groundAcceleration: 90
-  groundDeceleration: 110
+  runSpeed: 6.9
+  groundAcceleration: 80
+  groundDeceleration: 80
   groundStickForce: 2
-  gravity: 28
+  gravity: 25
   jumpHeight: 1.25
   maxFallSpeed: 40
   coyoteTime: 0.1
   jumpBufferTime: 0.12
-  forwardJumpBoost: 0.15
+  forwardJumpBoost: 0.35
   forwardInputThreshold: 0.5
   bhopWindow: 0.5
   stackBhop: 0
   maxSpeedMultiplier: 1.6
-  airStrafeAcceleration: 14
+  airStrafeAcceleration: 45
   airMaxSpeedFactor: 1.1
   standHeight: 1.8
   crouchHeight: 1.1
-  crouchSpeed: 3.2
+  crouchSpeed: 3
   heightChangeSpeed: 8
   proneHeight: 0.7
   proneSpeed: 0
@@ -48,16 +48,18 @@ MonoBehaviour:
   crouchToStandTime: 0.5
   getUpRecoveryTime: 1.5
   getUpStartSpeedFactor: 0.25
-  slideDistance: 6
-  slideMinSpeed: 3.5
+  slideDistance: 5
+  slideMinSpeed: 3
   slideSpeedBoost: 1.15
   slideCooldown: 0.35
-  rollDistance: 6
-  rollDuration: 0.8
+  rollDistance: 4.2
+  rollDuration: 0.6
   rollEndSpeedFactor: 1
-  rollCooldown: 0.5
+  rollCooldown: 0.15
   rollBufferTime: 0.15
-  rollJumpCancelTime: 0.47
+  rollJumpCancelTime: 0.3
+  rollActionCancelTime: 0.3
+  rollMoveCancelTime: 0.48
   wallRunDuration: 1
   wallRunEndPushSpeed: 1.5
   wallRunDetectDistance: 0.6
@@ -71,6 +73,10 @@ MonoBehaviour:
   wallJumpSpeedFactor: 1
   wallJumpMinAwayFactor: 0.3
   wallRunCooldown: 0.25
+  wallRunAllowAim: 0
+  wallClimbSpeed: 4
+  wallClimbMaxHeight: 1.8
+  wallClimbDetectDistance: 0.6
   ledgeMaxReach: 2.1
   ledgeMinHeight: 0.7
   quickMantleMaxHeight: 1.5
@@ -78,8 +84,8 @@ MonoBehaviour:
   hangHandHeight: 1.8
   hangSnapSpeed: 10
   hangMinTime: 0.12
-  climbUpSpeed: 4.5
-  climbForwardSpeed: 3.5
+  climbUpSpeed: 4
+  climbForwardSpeed: 3.2
   mantleSpeedMultiplier: 1.6
   ledgeRegrabCooldown: 0.4
-  defaultsVersion: 8
+  defaultsVersion: 10

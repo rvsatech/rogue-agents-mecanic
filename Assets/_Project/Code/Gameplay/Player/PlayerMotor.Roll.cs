@@ -11,7 +11,7 @@ namespace Rogue.Gameplay
     /// Saídas fluidas (estilo Rogue Agents, sem esperar levantar):
     ///   rollJumpCancelTime   -> Espaço pula (com Shift, vai para a parede);
     ///   rollActionCancelTime -> C emenda slide, Alt emenda outra cambalhota;
-    ///   rollMoveCancelTime   -> virar para outro lado, atirar ou mirar já sai correndo.
+    ///   rollMoveCancelTime   -> qualquer tecla de andar, atirar ou mirar já sai correndo.
     /// </summary>
     public sealed partial class PlayerMotor
     {
@@ -73,10 +73,9 @@ namespace Rogue.Gameplay
 
             if (state.Grounded && state.RollTimer >= config.rollMoveCancelTime)
             {
-                // Virou para outro lado, atirou ou mirou: sai correndo na hora (mantém a velocidade).
+                // Fim do giro: qualquer tecla de andar, tiro ou mira já sai correndo (sem esperar levantar).
                 Vector3 wish = WishDirection(frame);
-                bool turning = wish.sqrMagnitude > 0.01f && Vector3.Dot(wish.normalized, state.RollDirection) < 0.7f;
-                if (turning || frame.FireHeld || frame.AimHeld)
+                if (wish.sqrMagnitude > 0.01f || frame.FireHeld || frame.AimHeld)
                 {
                     EndRoll();
                     SimulateLocomotion(frame, dt);

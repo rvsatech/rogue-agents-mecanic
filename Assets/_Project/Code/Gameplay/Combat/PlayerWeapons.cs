@@ -195,12 +195,30 @@ namespace Rogue.Gameplay
         /// </summary>
         public bool IsScoped { get; private set; }
 
-        /// <summary>Correndo na parede com wallRunAllowAim desligado: o botão direito não mira.</summary>
-        private bool AimBlockedOnWall()
+        [Tooltip("Deslizando: o espalhamento do tiro é multiplicado por isso (tiro pior).")]
+        [SerializeField] private float slideSpreadMultiplier = 2f;
+
+        [Tooltip("Mirando (zoom de ombro): a velocidade de andar é multiplicada por isso (0,85 = 15% mais lento).")]
+        [SerializeField] private float aimMoveSpeedMultiplier = 0.85f;
+
+        /// <summary>
+        /// O botão direito não mira (sem zoom/luneta): deslizando, rolando, escalando e na parede
+        /// (com wallRunAllowAim desligado). A câmera usa o mesmo.
+        /// </summary>
+        public bool AimBlocked
         {
-            return motor != null && motor.State.Mode == MotorMode.WallRun &&
-                   motor.Config != null && !motor.Config.wallRunAllowAim;
+            get
+            {
+                if (motor == null) return false;
+                MotorMode mode = motor.State.Mode;
+                if (mode == MotorMode.Slide || mode == MotorMode.Roll) return true;
+                return mode == MotorMode.WallRun &&
+                       (motor.State.WallClimbing || (motor.Config != null && !motor.Config.wallRunAllowAim));
+            }
         }
+
+        /// <summary>Deslizando (tiro pior e coice maior).</summary>
+        public bool IsSliding => motor != null && motor.State.Mode == MotorMode.Slide;
 
         /// <summary>Mirando com arma de fogo: zoom de ombro (rifle/pistola) ou luneta (AWP). Dá menos coice.</summary>
         public bool IsAiming { get; private set; }
@@ -349,7 +367,7 @@ namespace Rogue.Gameplay
 
             // Luneta (sniper): depois do tiro sai por um tempo (ferrolho) e volta se ainda estiver mirando.
             // Na parede (MovementConfig.wallRunAllowAim desligado) o botão direito não mira: sem luneta e sem zoom.
-            bool aimHeld = input.AimHeld && !AimBlockedOnWall();
+            bool aimHeld = input.AimHeld && !AimBlocked;
             IsScoped = cfg != null && cfg.HasScope && aimHeld && canAct && !IsReloading &&
                        Time.time >= scopeBlockedUntil;
             IsAiming = cfg != null && cfg.kind == WeaponKind.Hitscan && aimHeld && (!cfg.HasScope || IsScoped);
@@ -893,7 +911,8 @@ namespace Rogue.Gameplay
         private bool HandsFree()
         {
             MotorMode mode = motor.State.Mode;
-            return mode != MotorMode.LedgeHang && mode != MotorMode.LedgeClimb && mode != MotorMode.Roll;
+            return mode != MotorMode.LedgeHang && mode != MotorMode.LedgeClimb && mode != MotorMode.Roll &&
+                   !(mode == MotorMode.WallRun && motor.State.WallClimbing); // escalando: mãos no muro
         }
 
         private bool CanAct()
@@ -905,7 +924,8 @@ namespace Rogue.Gameplay
         {
             WeaponConfig cfg = CurrentConfig;
             float scoped = cfg != null && IsScoped ? cfg.scopedMoveSpeedMultiplier : 1f;
-            motor.WeaponSpeedMultiplier = cfg != null ? cfg.moveSpeedMultiplier * scoped : 1f;
+            float aiming = IsAiming && !IsScoped ? aimMoveSpeedMultiplier : 1f; // mirando: -15%
+            motor.WeaponSpeedMultiplier = cfg != null ? cfg.moveSpeedMultiplier * scoped * aiming : 1f;
             motor.FiringGroundPenalty = firingGun && cfg != null ? cfg.firingGroundSpeedPenalty : 0f;
         }
 
@@ -946,6 +966,7 @@ namespace Rogue.Gameplay
             float spread = steady ? cfg.spreadDegrees : cfg.airSpreadDegrees;
             if (cfg.HasScope && IsScoped && steady) spread = cfg.scopedSpreadDegrees; // luneta: preciso parado
             if (s.Prone) spread *= cfg.proneSpreadFactor;
+            if (s.Mode == MotorMode.Slide) spread = Mathf.Max(spread, cfg.spreadDegrees) * slideSpreadMultiplier;
             if (cfg.movingSpreadDegrees > 0f && motor.Config != null && motor.Config.runSpeed > 0f)
                 spread += cfg.movingSpreadDegrees * Mathf.Clamp01(s.HorizontalSpeed / motor.Config.runSpeed);
 

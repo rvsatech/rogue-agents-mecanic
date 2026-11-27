@@ -15,9 +15,9 @@ MonoBehaviour:
   fieldOfView: 60
   distance: 3.2
   shoulderOffset: 0.65
-  aimFieldOfView: 48
-  aimDistance: 2.3
-  aimShoulderOffset: 0.75
+  aimFieldOfView: 44
+  aimDistance: 1.45
+  aimShoulderOffset: 0.62
   aimLerpSpeed: 10
   scopeLerpSpeed: 12
   aimSensitivity: 0.6
@@ -35,9 +35,14 @@ MonoBehaviour:
   landDipMinSpeed: 9
   landDipMaxSpeed: 18
   shotShake: 1
+  wallRunDistanceBoost: 0.9
+  wallRunShoulderOffset: 0.2
+  aimShotTremor: 0.55
+  hipShotTremor: 0.2
+  tremorRecovery: 16
   collisionRadius: 0.2
   minDistance: 0.1
   collisionMask:
     serializedVersion: 2
     m_Bits: 4294966783
-  defaultsVersion: 1
+  defaultsVersion: 3
