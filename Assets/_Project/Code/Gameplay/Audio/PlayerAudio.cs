@@ -79,6 +79,8 @@ namespace Rogue.Gameplay
                 weapons.Equipped += OnEquipped;
                 weapons.MeleeSwung += OnMeleeSwung;
                 weapons.Hit += OnHit;
+                weapons.ItemUsed += OnItemUsed;
+                weapons.Thrown += OnThrown;
             }
             if (iceWallPlacer != null)
             {
@@ -98,6 +100,8 @@ namespace Rogue.Gameplay
                 weapons.Equipped -= OnEquipped;
                 weapons.MeleeSwung -= OnMeleeSwung;
                 weapons.Hit -= OnHit;
+                weapons.ItemUsed -= OnItemUsed;
+                weapons.Thrown -= OnThrown;
             }
             if (iceWallPlacer != null)
             {
@@ -224,7 +228,14 @@ namespace Rogue.Gameplay
 
             WeaponConfig cfg = weapons.CurrentConfig;
             float progress = weapons.ReloadProgress;
-            if (cfg != null)
+            if (cfg != null && cfg.reloadShellInserts > 0)
+            {
+                // A 12: um "põe" a cada cartucho (no mesmo momento da animação) e a bombeada no fim.
+                for (int i = 0; i < cfg.reloadShellInserts; i++)
+                    if (Crossed(previousReloadProgress, progress, cfg.ShellInsertMark(i))) Play(cfg.reloadInSound, position);
+                if (Crossed(previousReloadProgress, progress, reloadSoundMarks.z)) Play(cfg.reloadRackSound, position);
+            }
+            else if (cfg != null)
             {
                 if (Crossed(previousReloadProgress, progress, reloadSoundMarks.x)) Play(cfg.reloadOutSound, position);
                 if (Crossed(previousReloadProgress, progress, reloadSoundMarks.y)) Play(cfg.reloadInSound, position);
@@ -272,6 +283,7 @@ namespace Rogue.Gameplay
         private void OnFootstep(FootstepInfo step)
         {
             if (bank == null) return;
+            if (motor != null && motor.State.QuietWalking) return; // modo xiu: sem barulho de passo
             float volume = Mathf.Lerp(0.4f, 1f, Mathf.InverseLerp(1.5f, 8f, step.Speed));
             if (step.Crouching) volume *= 0.45f;
             if (step.OnWall) volume *= 0.9f;
@@ -286,6 +298,10 @@ namespace Rogue.Gameplay
 
         private void OnMeleeSwung(WeaponConfig cfg) => Play(cfg.swingSound, Chest());
 
+        private void OnItemUsed(WeaponConfig cfg, float healed) => Play(cfg.useCompleteSound, Chest());
+
+        private void OnThrown(WeaponConfig cfg) => Play(cfg.swingSound, Chest());
+
         private void OnHit(WeaponHitInfo hit)
         {
             if (bank == null) return;
@@ -298,7 +314,13 @@ namespace Rogue.Gameplay
                 case HitSurface.Target:
                     if (hit.Melee) PlayWorld(hit.Weapon.meleeHitSound, hit.Point);
                     else PlayWorld(bank.bulletHitTarget, hit.Point);
-                    if (isLocalPlayer) PlayWorld(bank.hitMarker, hit.Point);
+                    if (isLocalPlayer)
+                    {
+                        // Interface: abate > cabeça > acerto normal.
+                        if (hit.Killed && bank.killConfirm.HasClips) PlayWorld(bank.killConfirm, hit.Point);
+                        else if (hit.Headshot && bank.headshotMarker.HasClips) PlayWorld(bank.headshotMarker, hit.Point);
+                        else PlayWorld(bank.hitMarker, hit.Point);
+                    }
                     break;
                 default:
                     if (hit.Melee) PlayWorld(hit.Weapon.meleeHitSound, hit.Point, 0.6f);

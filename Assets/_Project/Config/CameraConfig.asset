@@ -12,19 +12,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24ffee07e6b181146a321239e048842a, type: 3}
   m_Name: CameraConfig
   m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.CameraConfig
-  fieldOfView: 75
+  fieldOfView: 60
   distance: 3.2
   shoulderOffset: 0.65
-  aimFieldOfView: 62
+  aimFieldOfView: 48
   aimDistance: 2.3
   aimShoulderOffset: 0.75
   aimLerpSpeed: 10
+  scopeLerpSpeed: 12
+  aimSensitivity: 0.6
+  scopeSensitivity: 1
   standPivotHeight: 1.6
   crouchPivotHeight: 1.3
   pronePivotHeight: 0.75
   pivotHeightSpeed: 2.5
+  speedFovBoost: 5
+  slideFovBoost: 7
+  wallRunFovBoost: 5
+  fovBoostSpeed: 6
+  wallRunTilt: 6
+  landDip: 0.22
+  landDipMinSpeed: 9
+  landDipMaxSpeed: 18
+  shotShake: 1
   collisionRadius: 0.2
   minDistance: 0.1
   collisionMask:
     serializedVersion: 2
     m_Bits: 4294966783
+  defaultsVersion: 1

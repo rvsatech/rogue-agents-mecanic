@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Rogue.Gameplay
 {
@@ -13,7 +14,8 @@ namespace Rogue.Gameplay
     /// - Cambalhota: para a direção da cambalhota.
     /// - Parede: SEMPRE ao longo da parede, inclinado para fora (mesmo virando a câmera ou atirando:
     ///   só o tronco gira para a mira, com limite — nunca fica de costas). Pendurado: para a parede.
-    /// - Deitado: de barriga para cima, pés para a mira, cabeça levantada olhando para frente.
+    /// - Deitado: de barriga para cima, pés para a mira, cabeça levantada. Fica PARADO: só gira (devagar,
+    ///   arrastando no chão) quando a mira sai do cone de proneAimFreeAngle na frente dos pés.
     /// - Levantando: senta e agacha no tempo da etapa 1 (proneToCrouchTime).
     /// </summary>
     public sealed class PlayerVisual : MonoBehaviour
@@ -24,16 +26,27 @@ namespace Rogue.Gameplay
 
         [Header("Rotação do corpo")]
         [Tooltip("Graus por segundo que o corpo gira. Alto = vira quase na hora.")]
-        [SerializeField] private float turnSpeed = 900f;
+        [SerializeField] private float turnSpeed = 540f;
 
         [Tooltip("Giro durante a cambalhota (bem rápido: o corpo já rola para o lado certo).")]
         [SerializeField] private float rollTurnSpeed = 3000f;
 
-        [Tooltip("Giro deitado (mais lento, como no chão de verdade).")]
-        [SerializeField] private float proneTurnSpeed = 300f;
+        [Tooltip("Deitado: graus por segundo que o corpo gira arrastando no chão (bem lento).")]
+        [SerializeField] private float proneDragTurnSpeed = 60f;
+
+        [Tooltip("Deitado: a mira pode ir até este ângulo para cada lado dos pés sem o corpo se mexer.")]
+        [SerializeField] private float proneAimFreeAngle = 50f;
 
         [Tooltip("Segundos que o corpo continua virado para a mira depois do último ataque.")]
         [SerializeField] private float combatHoldTime = 0.8f;
+
+        [Header("Atirando correndo para trás")]
+        [Tooltip("Correndo para longe da mira (ângulo entre a mira e a direção da corrida maior que isto) e atirando " +
+                 "com arma de fogo: o corpo continua de frente para onde corre; só a cabeça e o braço da arma viram para trás.")]
+        [SerializeField] private float backShotAngle = 120f;
+
+        [Tooltip("Velocidade mínima (m/s) para valer o tiro para trás correndo.")]
+        [SerializeField] private float backShotMinSpeed = 1.5f;
 
         [Header("Wall run")]
         [SerializeField] private float wallRunLeanAngle = 18f;
@@ -67,6 +80,9 @@ namespace Rogue.Gameplay
         private float proneWeight;
         private float pivotHipHeight = -1f;
         private bool initialized;
+        private Renderer[] ownRenderers;
+        private ShadowCastingMode[] ownShadowModes;
+        private bool scopedHidden;
 
         /// <summary>Para onde o corpo está virado (graus).</summary>
         public float BodyYaw => bodyYaw;
@@ -81,8 +97,17 @@ namespace Rogue.Gameplay
         /// <summary>0 = em pé, 1 = deitado.</summary>
         public float ProneWeight => proneWeight;
 
+        /// <summary>Deitado: até quantos graus de cada lado a mira vai sem girar o corpo.</summary>
+        public float ProneAimFreeAngle => proneAimFreeAngle;
+
         /// <summary>Atirando, mirando, golpeando ou com o gelo na mão: corpo e braços seguem a mira.</summary>
         public bool InCombat { get; private set; }
+
+        /// <summary>
+        /// Correndo para trás (em relação à mira) atirando/mirando com arma de fogo: o corpo fica de frente para onde
+        /// corre e o animator vira a cabeça e o braço da arma para trás.
+        /// </summary>
+        public bool BackShooting { get; private set; }
 
         private void Update()
         {
@@ -100,7 +125,7 @@ namespace Rogue.Gameplay
             bool handsBusy = s.Mode == MotorMode.LedgeHang || s.Mode == MotorMode.LedgeClimb || s.Mode == MotorMode.Roll;
             bool recentAction = weapons != null && Time.time - weapons.LastActionTime < combatHoldTime;
             WeaponConfig weapon = weapons != null ? weapons.CurrentConfig : null;
-            bool gadgetInHand = weapon != null && weapon.kind == WeaponKind.Gadget;
+            bool gadgetInHand = weapon != null && (weapon.kind == WeaponKind.Gadget || weapon.kind == WeaponKind.Throwable);
             bool attacking = weapons != null && weapons.IsMeleeAttacking;
             InCombat = !handsBusy &&
                        (motor.LastInput.AimHeld || motor.LastInput.FireHeld || recentAction || attacking || gadgetInHand);
@@ -108,6 +133,20 @@ namespace Rogue.Gameplay
             float aimYaw = input != null ? input.Yaw : bodyYaw;
             float targetYaw = bodyYaw;
             float speed = turnSpeed;
+
+            // Correndo para trás atirando: o corpo não vira para a mira (com folga para não ficar trocando).
+            Vector3 flatVelocity = new Vector3(s.Velocity.x, 0f, s.Velocity.z);
+            bool gunInHand = weapon != null && weapon.kind == WeaponKind.Hitscan;
+            float moveAimAngle = Mathf.Abs(Mathf.DeltaAngle(aimYaw, YawOf(flatVelocity, aimYaw)));
+            bool movingAway = BackShooting
+                ? s.HorizontalSpeed > backShotMinSpeed * 0.66f && moveAimAngle > backShotAngle - 20f
+                : s.HorizontalSpeed > backShotMinSpeed && moveAimAngle > backShotAngle;
+            // Deslizando para longe da mira: mesma pose (cabeça e braço da arma para trás).
+            float slideAimAngle = Mathf.Abs(Mathf.DeltaAngle(aimYaw, YawOf(s.SlideDirection, aimYaw)));
+            bool slidingAway = s.Mode == MotorMode.Slide &&
+                               slideAimAngle > (BackShooting ? backShotAngle - 20f : backShotAngle);
+            BackShooting = InCombat && gunInHand && (weapons == null || !weapons.IsScoped) &&
+                           ((movingAway && s.Mode == MotorMode.Locomotion && !s.Prone) || slidingAway);
 
             switch (s.Mode)
             {
@@ -119,7 +158,9 @@ namespace Rogue.Gameplay
                     targetYaw = YawOf(-s.LedgeNormal, bodyYaw);
                     break;
                 case MotorMode.Slide:
-                    targetYaw = InCombat ? aimYaw : YawOf(s.SlideDirection, bodyYaw);
+                    // Deslizando: o corpo segue o slide (pernas travadas nessa direção). Atirando, só o tronco gira
+                    // para a mira, com limite; mirando para trás, a cabeça e o braço da arma viram para trás.
+                    targetYaw = YawOf(s.SlideDirection, bodyYaw);
                     break;
                 case MotorMode.Roll:
                     targetYaw = YawOf(s.RollDirection, bodyYaw);
@@ -128,10 +169,14 @@ namespace Rogue.Gameplay
                 default:
                     if (s.Prone)
                     {
-                        targetYaw = aimYaw;
-                        speed = proneTurnSpeed;
+                        // Deitado: parado. Só gira (devagar) para a mira não sair do cone na frente dos pés.
+                        float offset = Mathf.DeltaAngle(bodyYaw, aimYaw);
+                        targetYaw = Mathf.Abs(offset) > proneAimFreeAngle
+                            ? aimYaw - Mathf.Sign(offset) * proneAimFreeAngle
+                            : bodyYaw;
+                        speed = proneDragTurnSpeed;
                     }
-                    else if (InCombat)
+                    else if (InCombat && !BackShooting)
                     {
                         targetYaw = aimYaw;
                     }
@@ -197,6 +242,46 @@ namespace Rogue.Gameplay
                 body.localPosition = new Vector3(0f, height * 0.5f, 0f);
                 body.localScale = new Vector3(bodyWidth, height * 0.5f, bodyWidth);
             }
+        }
+
+        /// <summary>
+        /// Na luneta (1ª pessoa): o corpo e as armas somem da câmera, mas a sombra continua.
+        /// </summary>
+        public void SetScopedView(bool hidden)
+        {
+            if (hidden == scopedHidden) return;
+            scopedHidden = hidden;
+
+            if (ownRenderers == null)
+            {
+                ownRenderers = GetComponentsInChildren<Renderer>(true);
+                ownShadowModes = new ShadowCastingMode[ownRenderers.Length];
+                for (int i = 0; i < ownRenderers.Length; i++)
+                    ownShadowModes[i] = ownRenderers[i] != null ? ownRenderers[i].shadowCastingMode : ShadowCastingMode.On;
+            }
+
+            for (int i = 0; i < ownRenderers.Length; i++)
+            {
+                Renderer r = ownRenderers[i];
+                if (r == null) continue;
+                // Só fica a sombra de quem já fazia sombra; o resto (clarão do cano e afins) some.
+                // forceRenderingOff não mexe no "enabled" que outros scripts usam para ligar/desligar.
+                if (ownShadowModes[i] == ShadowCastingMode.Off) r.forceRenderingOff = hidden;
+                else r.shadowCastingMode = hidden ? ShadowCastingMode.ShadowsOnly : ownShadowModes[i];
+            }
+        }
+
+        /// <summary>
+        /// O modelo mudou (troca de personagem/skin): esquece a lista de peças que somem na luneta e,
+        /// se estiver na luneta agora, esconde as peças novas.
+        /// </summary>
+        public void RefreshRenderers()
+        {
+            bool hidden = scopedHidden;
+            if (hidden) SetScopedView(false);
+            ownRenderers = null;
+            ownShadowModes = null;
+            if (hidden) SetScopedView(true);
         }
 
         private static float YawOf(Vector3 direction, float fallback)

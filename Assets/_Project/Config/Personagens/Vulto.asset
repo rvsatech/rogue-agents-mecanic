@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 245b5abe97d32f74c9bb5b1db9a7cef6, type: 3}
+  m_Name: Vulto
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.CharacterDefinition
+  id: vulto
+  displayName: Vulto
+  description: "Operador t\xE1tico: colete, joelheira e luva."
+  model: {fileID: -7504184398531512168, guid: e15f837afda04158837783b1d02a6b06, type: 3}
+  bodyHeight: 1.8195864
+  hipsScale: 1.03486
+  animationHostPath: 
+  skins:
+  - id: padrao
+    displayName: "Padr\xE3o"
+    body: {fileID: 2100000, guid: 1f09e4324574a9c459939318c8ebce20, type: 2}
+    hair: {fileID: 2100000, guid: b75fbcbf9bea47141b9c7b17e6f622f2, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: a3886e068bea6bb479a0f0eda19bbe95, type: 2}
+    parts:
+    - Peca_Gorro
+    hideHair: 0
+  - id: selva
+    displayName: Selva
+    body: {fileID: 2100000, guid: 25d84117be2caa84ca4d02344e0a15ec, type: 2}
+    hair: {fileID: 2100000, guid: 6e1612bbec18fbd40a1684b3f9de823e, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: e7ca35dae7e4ada4394f8a3b526c0939, type: 2}
+    parts:
+    - Peca_Capacete
+    hideHair: 0
+  - id: urbano
+    displayName: Urbano
+    body: {fileID: 2100000, guid: 7ecbde82c3b029f46ae445d3c49bbab3, type: 2}
+    hair: {fileID: 2100000, guid: 1ff507be317f2ce41af973d918597e30, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: 6777251bbd5ec2149bbee42bf54c5292, type: 2}
+    parts: []
+    hideHair: 0

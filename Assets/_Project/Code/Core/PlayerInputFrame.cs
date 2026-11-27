@@ -41,6 +41,9 @@ namespace Rogue.Core
         /// <summary>R: recarregar.</summary>
         public bool ReloadPressed;
 
+        /// <summary>X segurado: modo xiu (anda devagar e sem barulho de passo).</summary>
+        public bool QuietHeld;
+
         /// <summary>Alt (toque): cambalhota.</summary>
         public bool RollPressed;
 
@@ -53,17 +56,26 @@ namespace Rogue.Core
         /// <summary>Botão direito segurado: mirar.</summary>
         public bool AimHeld;
 
-        /// <summary>1: arma principal.</summary>
+        /// <summary>1: arma primária (a escolhida no inventário: UMP, AWP ou a 12).</summary>
         public bool Weapon1Pressed;
 
-        /// <summary>2: pistola.</summary>
+        /// <summary>2: arma secundária (pistola).</summary>
         public bool Weapon2Pressed;
 
         /// <summary>3: faca.</summary>
         public bool Weapon3Pressed;
 
-        /// <summary>4: gelo (barreira).</summary>
-        public bool Weapon4Pressed;
+        /// <summary>4: usar o kit médico (4 de novo cancela).</summary>
+        public bool MedkitPressed;
+
+        /// <summary>E: parede de gelo (proteção).</summary>
+        public bool IceWallPressed;
+
+        /// <summary>G: gadget escolhido no inventário (granada, flash ou smoke).</summary>
+        public bool GadgetPressed;
+
+        /// <summary>Botão direito apertado neste tick (granadas: arremesso curto).</summary>
+        public bool AimPressed;
 
         /// <summary>Q: volta para a arma anterior.</summary>
         public bool QuickSwitchPressed;

@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 245b5abe97d32f74c9bb5b1db9a7cef6, type: 3}
+  m_Name: Pistao
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.CharacterDefinition
+  id: pistao
+  displayName: "Pist\xE3o"
+  description: "Mec\xE2nico da f\xE1brica: macac\xE3o e capacete."
+  model: {fileID: -7504184398531512168, guid: d4d14ff83c724ba2b6043870ca31c6cd, type: 3}
+  bodyHeight: 1.8195864
+  hipsScale: 1.03486
+  animationHostPath: 
+  skins:
+  - id: laranja
+    displayName: Laranja
+    body: {fileID: 2100000, guid: 36f067dbadac25140a74d37901a5cfd1, type: 2}
+    hair: {fileID: 2100000, guid: 06ef95c40f341bc4e901c514faf343cb, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: 7e7ee0cadeb9c094e8b135389a229ab4, type: 2}
+    parts:
+    - Peca_CapaceteObra
+    hideHair: 0
+  - id: azul
+    displayName: Azul
+    body: {fileID: 2100000, guid: cd368d2c54fa4b0488be0a3ae6aec8f8, type: 2}
+    hair: {fileID: 2100000, guid: cf83ff21fae135b489689c8615956d9e, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: d6ae3055566639242a0f92b5926f6e05, type: 2}
+    parts:
+    - Peca_CapaceteObra
+    hideHair: 0
+  - id: ferrugem
+    displayName: Ferrugem
+    body: {fileID: 2100000, guid: 9e5722df36504384082e125ed2a98a2e, type: 2}
+    hair: {fileID: 2100000, guid: 66a366ddd9230cb459d186ec2dec219a, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: f1b68628e18b68c44a2204364675a6c6, type: 2}
+    parts:
+    - Peca_Bone
+    hideHair: 0

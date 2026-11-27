@@ -14,7 +14,8 @@ namespace Rogue.Gameplay
     /// Teclas:
     ///   WASD mover · Espaço pular · Shift agachar (segurar) · Shift + Espaço perto da parede = wall run
     ///   Ctrl deitar/levantar · C slide (segurar) · Alt cambalhota
-    ///   1 rifle · 2 pistola · 3 faca · 4 gelo · Q troca rápida · R recarregar
+    ///   X modo xiu (segurar: devagar e sem barulho)
+    ///   1 rifle · 2 pistola · 3 faca · 4 gelo · 5 AWP · Q troca rápida · R recarregar
     ///   Botão esquerdo atirar/usar · Botão direito mirar
     /// </summary>
     [DefaultExecutionOrder(-100)]
@@ -40,9 +41,12 @@ namespace Rogue.Gameplay
         private InputAction weapon1;
         private InputAction weapon2;
         private InputAction weapon3;
-        private InputAction weapon4;
+        private InputAction medkit;
+        private InputAction iceWall;
+        private InputAction gadget;
         private InputAction quickSwitch;
         private InputAction reload;
+        private InputAction quietWalk;
         private InputAction[] allActions;
 
         private bool jumpLatch;
@@ -53,12 +57,40 @@ namespace Rogue.Gameplay
         private bool weapon1Latch;
         private bool weapon2Latch;
         private bool weapon3Latch;
-        private bool weapon4Latch;
+        private bool medkitLatch;
+        private bool iceWallLatch;
+        private bool gadgetLatch;
+        private bool aimLatch;
         private bool quickSwitchLatch;
         private bool reloadLatch;
 
+        /// <summary>Menu aberto (inventário): o mouse fica solto e clicar não prende nem atira.</summary>
+        public static bool MenuOpen { get; private set; }
+
+        /// <summary>Abre/fecha um menu: solta o mouse ao abrir e prende de novo ao fechar.</summary>
+        public static void SetMenuOpen(bool open)
+        {
+            MenuOpen = open;
+            LockCursor(!open);
+        }
+
         public float Yaw { get; private set; }
         public float Pitch { get; private set; }
+
+        /// <summary>
+        /// Multiplica a sensibilidade do mouse (a câmera põe menor no zoom/luneta, para a mira não ficar nervosa).
+        /// </summary>
+        public float LookSensitivityScale { get; set; } = 1f;
+
+        /// <summary>Quanto o MOUSE girou a mira neste frame (graus; y positivo = para baixo).</summary>
+        public Vector2 LastMouseLook { get; private set; }
+
+        /// <summary>Gira a mira por código (ex.: coice da arma). pitchDelta positivo = para baixo.</summary>
+        public void AddLook(float yawDelta, float pitchDelta)
+        {
+            Yaw = Mathf.Repeat(Yaw + yawDelta, 360f);
+            Pitch = Mathf.Clamp(Pitch + pitchDelta, minPitch, maxPitch);
+        }
 
         private void Awake()
         {
@@ -82,14 +114,18 @@ namespace Rogue.Gameplay
             weapon1 = new InputAction("Weapon1", InputActionType.Button, "<Keyboard>/1");
             weapon2 = new InputAction("Weapon2", InputActionType.Button, "<Keyboard>/2");
             weapon3 = new InputAction("Weapon3", InputActionType.Button, "<Keyboard>/3");
-            weapon4 = new InputAction("Weapon4", InputActionType.Button, "<Keyboard>/4");
+            medkit = new InputAction("Medkit", InputActionType.Button, "<Keyboard>/4");
+            iceWall = new InputAction("IceWall", InputActionType.Button, "<Keyboard>/e");
+            gadget = new InputAction("Gadget", InputActionType.Button, "<Keyboard>/g");
             quickSwitch = new InputAction("QuickSwitch", InputActionType.Button, "<Keyboard>/q");
             reload = new InputAction("Reload", InputActionType.Button, "<Keyboard>/r");
+            quietWalk = new InputAction("QuietWalk", InputActionType.Button, "<Keyboard>/x");
 
             allActions = new[]
             {
                 move, look, jump, crouch, wallRun, prone, slide, roll, fire, aim,
-                weapon1, weapon2, weapon3, weapon4, quickSwitch, reload
+                weapon1, weapon2, weapon3, medkit, iceWall, gadget,
+                quickSwitch, reload, quietWalk
             };
 
             Yaw = transform.eulerAngles.y;
@@ -118,12 +154,16 @@ namespace Rogue.Gameplay
             bool wasLocked = Cursor.lockState == CursorLockMode.Locked;
             HandleCursor();
 
+            LastMouseLook = Vector2.zero;
             if (Cursor.lockState == CursorLockMode.Locked)
             {
                 Vector2 delta = look.ReadValue<Vector2>();
-                Yaw = Mathf.Repeat(Yaw + delta.x * mouseSensitivity, 360f);
-                float pitchDelta = delta.y * mouseSensitivity * (invertY ? 1f : -1f);
+                float sensitivity = mouseSensitivity * LookSensitivityScale;
+                float yawDelta = delta.x * sensitivity;
+                float pitchDelta = delta.y * sensitivity * (invertY ? 1f : -1f);
+                Yaw = Mathf.Repeat(Yaw + yawDelta, 360f);
                 Pitch = Mathf.Clamp(Pitch + pitchDelta, minPitch, maxPitch);
+                LastMouseLook = new Vector2(yawDelta, pitchDelta);
             }
 
             if (jump.WasPressedThisFrame()) jumpLatch = true;
@@ -134,7 +174,10 @@ namespace Rogue.Gameplay
             if (weapon1.WasPressedThisFrame()) weapon1Latch = true;
             if (weapon2.WasPressedThisFrame()) weapon2Latch = true;
             if (weapon3.WasPressedThisFrame()) weapon3Latch = true;
-            if (weapon4.WasPressedThisFrame()) weapon4Latch = true;
+            if (medkit.WasPressedThisFrame()) medkitLatch = true;
+            if (iceWall.WasPressedThisFrame()) iceWallLatch = true;
+            if (gadget.WasPressedThisFrame()) gadgetLatch = true;
+            if (aim.WasPressedThisFrame()) aimLatch = true;
             if (quickSwitch.WasPressedThisFrame()) quickSwitchLatch = true;
             if (reload.WasPressedThisFrame()) reloadLatch = true;
         }
@@ -155,6 +198,7 @@ namespace Rogue.Gameplay
                 SlidePressed = slideLatch,
                 SlideHeld = slide.IsPressed(),
                 ReloadPressed = reloadLatch,
+                QuietHeld = quietWalk.IsPressed(),
                 RollPressed = rollLatch,
                 FireHeld = fire.IsPressed() && Cursor.lockState == CursorLockMode.Locked,
                 FirePressed = fireLatch,
@@ -162,12 +206,16 @@ namespace Rogue.Gameplay
                 Weapon1Pressed = weapon1Latch,
                 Weapon2Pressed = weapon2Latch,
                 Weapon3Pressed = weapon3Latch,
-                Weapon4Pressed = weapon4Latch,
+                MedkitPressed = medkitLatch,
+                IceWallPressed = iceWallLatch,
+                GadgetPressed = gadgetLatch,
+                AimPressed = aimLatch,
                 QuickSwitchPressed = quickSwitchLatch
             };
 
             jumpLatch = proneLatch = slideLatch = rollLatch = fireLatch = false;
-            weapon1Latch = weapon2Latch = weapon3Latch = weapon4Latch = quickSwitchLatch = reloadLatch = false;
+            weapon1Latch = weapon2Latch = weapon3Latch = medkitLatch = iceWallLatch = gadgetLatch = false;
+            quickSwitchLatch = reloadLatch = aimLatch = false;
             return frame;
         }
 
@@ -176,6 +224,8 @@ namespace Rogue.Gameplay
         {
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
+
+            if (MenuOpen) return; // menu aberto: o clique é do menu
 
             if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
                 LockCursor(false);

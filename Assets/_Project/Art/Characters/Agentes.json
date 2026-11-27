@@ -1,0 +1,345 @@
+{
+ "versao": 1,
+ "cabeloCor": "Comum/T_Cabelo_Cor.jpg",
+ "cabeloNormal": "Comum/T_Cabelo_Normal.png",
+ "olhoCor": "Comum/T_Olho_Cor.png",
+ "olhoNormal": "Comum/T_Olho_Normal.png",
+ "agentes": [
+  {
+   "id": "vulto",
+   "nome": "Vulto",
+   "descricao": "Operador tático: colete, joelheira e luva.",
+   "modelo": "Vulto/Vulto.glb",
+   "normal": "Vulto/T_Vulto_Normal.png",
+   "alturaCorpo": 1.8195863831788301,
+   "escalaQuadril": 1.03486,
+   "pecas": [
+    "Peca_Gorro",
+    "Peca_Capacete"
+   ],
+   "skins": [
+    {
+     "id": "padrao",
+     "nome": "Padrão",
+     "cor": "Vulto/T_Vulto_Padrao.jpg",
+     "acessorios": "Vulto/T_Vulto_Padrao_Acessorios.png",
+     "corCabelo": [
+      0.1098,
+      0.0902,
+      0.0706
+     ],
+     "pecas": [
+      "Peca_Gorro"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "selva",
+     "nome": "Selva",
+     "cor": "Vulto/T_Vulto_Selva.jpg",
+     "acessorios": "Vulto/T_Vulto_Selva_Acessorios.png",
+     "corCabelo": [
+      0.2275,
+      0.1647,
+      0.1098
+     ],
+     "pecas": [
+      "Peca_Capacete"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "urbano",
+     "nome": "Urbano",
+     "cor": "Vulto/T_Vulto_Urbano.jpg",
+     "acessorios": "Vulto/T_Vulto_Urbano_Acessorios.png",
+     "corCabelo": [
+      0.1098,
+      0.0902,
+      0.0706
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    }
+   ]
+  },
+  {
+   "id": "brasa",
+   "nome": "Brasa",
+   "descricao": "Brigona de rua: jaqueta curta e tênis.",
+   "modelo": "Brasa/Brasa.glb",
+   "normal": "Brasa/T_Brasa_Normal.png",
+   "alturaCorpo": 1.7750510573387146,
+   "escalaQuadril": 1.01618,
+   "pecas": [],
+   "skins": [
+    {
+     "id": "padrao",
+     "nome": "Padrão",
+     "cor": "Brasa/T_Brasa_Padrao.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.0784,
+      0.0588,
+      0.0471
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    },
+    {
+     "id": "neon",
+     "nome": "Neon",
+     "cor": "Brasa/T_Brasa_Neon.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.0902,
+      0.7098,
+      0.5922
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    },
+    {
+     "id": "ouro",
+     "nome": "Ouro",
+     "cor": "Brasa/T_Brasa_Ouro.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.902,
+      0.8745,
+      0.8
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    }
+   ]
+  },
+  {
+   "id": "pistao",
+   "nome": "Pistão",
+   "descricao": "Mecânico da fábrica: macacão e capacete.",
+   "modelo": "Pistao/Pistao.glb",
+   "normal": "Pistao/T_Pistao_Normal.png",
+   "alturaCorpo": 1.8195863831788301,
+   "escalaQuadril": 1.03486,
+   "pecas": [
+    "Peca_CapaceteObra",
+    "Peca_Bone"
+   ],
+   "skins": [
+    {
+     "id": "laranja",
+     "nome": "Laranja",
+     "cor": "Pistao/T_Pistao_Laranja.jpg",
+     "acessorios": "Pistao/T_Pistao_Laranja_Acessorios.png",
+     "corCabelo": [
+      0.0863,
+      0.0667,
+      0.051
+     ],
+     "pecas": [
+      "Peca_CapaceteObra"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "azul",
+     "nome": "Azul",
+     "cor": "Pistao/T_Pistao_Azul.jpg",
+     "acessorios": "Pistao/T_Pistao_Azul_Acessorios.png",
+     "corCabelo": [
+      0.1686,
+      0.1137,
+      0.0784
+     ],
+     "pecas": [
+      "Peca_CapaceteObra"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "ferrugem",
+     "nome": "Ferrugem",
+     "cor": "Pistao/T_Pistao_Ferrugem.jpg",
+     "acessorios": "Pistao/T_Pistao_Ferrugem_Acessorios.png",
+     "corCabelo": [
+      0.0863,
+      0.0667,
+      0.051
+     ],
+     "pecas": [
+      "Peca_Bone"
+     ],
+     "esconderCabelo": false
+    }
+   ]
+  },
+  {
+   "id": "faisca",
+   "nome": "Faísca",
+   "descricao": "Hacker: agasalho esportivo e fone.",
+   "modelo": "Faisca/Faisca.glb",
+   "normal": "Faisca/T_Faisca_Normal.png",
+   "alturaCorpo": 1.7750510573387146,
+   "escalaQuadril": 1.01618,
+   "pecas": [
+    "Peca_Fone"
+   ],
+   "skins": [
+    {
+     "id": "padrao",
+     "nome": "Padrão",
+     "cor": "Faisca/T_Faisca_Padrao.jpg",
+     "acessorios": "Faisca/T_Faisca_Padrao_Acessorios.png",
+     "corCabelo": [
+      0.2314,
+      0.149,
+      0.0941
+     ],
+     "pecas": [
+      "Peca_Fone"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "gelo",
+     "nome": "Gelo",
+     "cor": "Faisca/T_Faisca_Gelo.jpg",
+     "acessorios": "Faisca/T_Faisca_Gelo_Acessorios.png",
+     "corCabelo": [
+      0.9373,
+      0.9137,
+      0.8667
+     ],
+     "pecas": [
+      "Peca_Fone"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "noite",
+     "nome": "Noite",
+     "cor": "Faisca/T_Faisca_Noite.jpg",
+     "acessorios": "Faisca/T_Faisca_Noite_Acessorios.png",
+     "corCabelo": [
+      0.851,
+      0.2745,
+      0.5608
+     ],
+     "pecas": [
+      "Peca_Fone"
+     ],
+     "esconderCabelo": false
+    }
+   ]
+  },
+  {
+   "id": "coruja",
+   "nome": "Coruja",
+   "descricao": "Atirador: camisa de campo, colete leve e boné.",
+   "modelo": "Coruja/Coruja.glb",
+   "normal": "Coruja/T_Coruja_Normal.png",
+   "alturaCorpo": 1.8195863831788301,
+   "escalaQuadril": 1.03486,
+   "pecas": [
+    "Peca_Bone"
+   ],
+   "skins": [
+    {
+     "id": "areia",
+     "nome": "Areia",
+     "cor": "Coruja/T_Coruja_Areia.jpg",
+     "acessorios": "Coruja/T_Coruja_Areia_Acessorios.png",
+     "corCabelo": [
+      0.2902,
+      0.1961,
+      0.1255
+     ],
+     "pecas": [
+      "Peca_Bone"
+     ],
+     "esconderCabelo": false
+    },
+    {
+     "id": "inverno",
+     "nome": "Inverno",
+     "cor": "Coruja/T_Coruja_Inverno.jpg",
+     "acessorios": "Coruja/T_Coruja_Inverno_Acessorios.png",
+     "corCabelo": [
+      0.7882,
+      0.6588,
+      0.4157
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    },
+    {
+     "id": "noturno",
+     "nome": "Noturno",
+     "cor": "Coruja/T_Coruja_Noturno.jpg",
+     "acessorios": "Coruja/T_Coruja_Noturno_Acessorios.png",
+     "corCabelo": [
+      0.0824,
+      0.0667,
+      0.0549
+     ],
+     "pecas": [
+      "Peca_Bone"
+     ],
+     "esconderCabelo": false
+    }
+   ]
+  },
+  {
+   "id": "sombra",
+   "nome": "Sombra",
+   "descricao": "Infiltradora: traje justo, máscara e botas altas.",
+   "modelo": "Sombra/Sombra.glb",
+   "normal": "Sombra/T_Sombra_Normal.png",
+   "alturaCorpo": 1.7750510573387146,
+   "escalaQuadril": 1.01618,
+   "pecas": [],
+   "skins": [
+    {
+     "id": "padrao",
+     "nome": "Padrão",
+     "cor": "Sombra/T_Sombra_Padrao.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.051,
+      0.0431,
+      0.0392
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    },
+    {
+     "id": "prata",
+     "nome": "Prata",
+     "cor": "Sombra/T_Sombra_Prata.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.9255,
+      0.9216,
+      0.9059
+     ],
+     "pecas": [],
+     "esconderCabelo": false
+    },
+    {
+     "id": "carmim",
+     "nome": "Carmim",
+     "cor": "Sombra/T_Sombra_Carmim.jpg",
+     "acessorios": "",
+     "corCabelo": [
+      0.051,
+      0.0431,
+      0.0392
+     ],
+     "pecas": [],
+     "esconderCabelo": true
+    }
+   ]
+  }
+ ]
+}

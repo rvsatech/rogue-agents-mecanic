@@ -41,6 +41,10 @@ namespace Rogue.Gameplay
         public SoundCue bulletHitTarget = new SoundCue();
         [Tooltip("'Tic' de interface ao acertar um alvo.")]
         public SoundCue hitMarker = new SoundCue();
+        [Tooltip("'Tic' mais agudo ao acertar a cabeça.")]
+        public SoundCue headshotMarker = new SoundCue();
+        [Tooltip("Confirmação de abate.")]
+        public SoundCue killConfirm = new SoundCue();
 
         [Header("Barreira de gelo")]
         public SoundCue iceCreate = new SoundCue();

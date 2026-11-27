@@ -25,19 +25,19 @@ namespace Rogue.Gameplay
 
         [Header("Chão")]
         [Tooltip("Velocidade de corrida normal, em metros por segundo.")]
-        public float runSpeed = 7.475f; // 6,5 + 15%
+        public float runSpeed = 6f; // ritmo do Rogue Agents: mais lento que antes (7,475)
 
-        [Tooltip("Quão rápido chega na velocidade máxima. Alto = resposta instantânea.")]
-        public float groundAcceleration = 90f;
+        [Tooltip("Quão rápido chega na velocidade máxima (m/s²). 40 = ~0,15 s até correr: tem peso, mas responde.")]
+        public float groundAcceleration = 40f;
 
-        [Tooltip("Quão rápido para ao soltar as teclas. Alto = para seco, sem 'sabão'.")]
-        public float groundDeceleration = 110f;
+        [Tooltip("Quão rápido para ao soltar as teclas (m/s²). 50 = para em ~0,12 s, sem escorregar.")]
+        public float groundDeceleration = 50f;
 
         [Tooltip("Força que mantém o personagem grudado no chão em descidas.")]
         public float groundStickForce = 2f;
 
         [Header("Gravidade e pulo")]
-        public float gravity = 28f;
+        public float gravity = 25f;
 
         [Tooltip("Altura do pulo em metros.")]
         public float jumpHeight = 1.25f;
@@ -52,7 +52,7 @@ namespace Rogue.Gameplay
 
         [Header("Bônus de pulo para frente / Bhop")]
         [Tooltip("0.15 = +15% de velocidade ao pular para frente.")]
-        [Range(0f, 1f)] public float forwardJumpBoost = 0.15f;
+        [Range(0f, 1f)] public float forwardJumpBoost = 0.25f;
 
         [Tooltip("Quanto do W precisa estar apertado para contar como 'para frente'.")]
         [Range(0.1f, 1f)] public float forwardInputThreshold = 0.5f;
@@ -77,8 +77,8 @@ namespace Rogue.Gameplay
         public float standHeight = 1.8f;
         public float crouchHeight = 1.1f;
 
-        [Tooltip("Velocidade andando agachado.")]
-        public float crouchSpeed = 3.2f;
+        [Tooltip("Velocidade andando agachado. O modo xiu (segurar X) anda nesta mesma velocidade, sem barulho de passo.")]
+        public float crouchSpeed = 2.6f;
 
         [Tooltip("Metros por segundo que a altura da cápsula muda ao agachar/levantar.")]
         public float heightChangeSpeed = 8f;
@@ -105,10 +105,10 @@ namespace Rogue.Gameplay
 
         [Header("Slide (segurar C)")]
         [Tooltip("Distância máxima do slide segurando C, em metros (6 = comprimento do túnel azul). Soltar o C para antes.")]
-        public float slideDistance = 6f;
+        public float slideDistance = 5f;
 
         [Tooltip("Velocidade mínima para começar a deslizar (abaixo disso o C só agacha).")]
-        public float slideMinSpeed = 3.5f;
+        public float slideMinSpeed = 3f;
 
         [Tooltip("Velocidade no início do slide em relação à velocidade atual (ou de corrida, se estiver parado).")]
         public float slideSpeedBoost = 1.15f;
@@ -118,26 +118,33 @@ namespace Rogue.Gameplay
 
         [Header("Cambalhota (Alt)")]
         [Tooltip("Distância da cambalhota, em metros.")]
-        public float rollDistance = 3.5f;
+        public float rollDistance = 4.5f;
 
-        [Tooltip("Duração da cambalhota, em segundos.")]
-        public float rollDuration = 0.6f;
+        [Tooltip("Duração da cambalhota, em segundos (a animação acompanha: 0,8 s = quase a velocidade natural dela).")]
+        public float rollDuration = 0.75f;
 
-        [Tooltip("Velocidade no fim em relação ao início (0.5 = termina na metade).")]
-        [Range(0.1f, 1f)] public float rollEndSpeedFactor = 0.5f;
+        [Tooltip("Velocidade no fim em relação ao início (1 = mesma velocidade até o fim: sai correndo na hora).")]
+        [Range(0.1f, 1f)] public float rollEndSpeedFactor = 1f;
 
         [Tooltip("Segundos de espera para rolar de novo.")]
-        public float rollCooldown = 0.5f;
+        public float rollCooldown = 0.15f;
 
         [Tooltip("Alt apertado até esse tempo antes de tocar o chão ainda vale.")]
         public float rollBufferTime = 0.15f;
 
-        [Tooltip("A partir desse tempo da cambalhota, Espaço já cancela em pulo.")]
+        [Tooltip("A partir desse tempo da cambalhota, Espaço já cancela em pulo (ou parede, com Shift).")]
         public float rollJumpCancelTime = 0.35f;
 
+        [Tooltip("A partir desse tempo, C emenda um slide e Alt emenda outra cambalhota (sem esperar levantar).")]
+        public float rollActionCancelTime = 0.4f;
+
+        [Tooltip("A partir desse tempo, virar para outro lado, atirar ou mirar já sai da cambalhota correndo.")]
+        public float rollMoveCancelTime = 0.55f;
+
         [Header("Wall run (Shift + Espaço)")]
-        [Tooltip("Tempo máximo correndo na parede (segundos).")]
-        public float wallRunDuration = 2f;
+        [Tooltip("Tempo máximo correndo na parede (segundos). Vale para a SOMA de todas as paredes até tocar o chão: " +
+                 "acabou, cai mesmo segurando Shift e Espaço.")]
+        public float wallRunDuration = 1f;
 
         [Tooltip("Quando o tempo acaba, empurra o corpo para longe da parede (m/s) para cair de verdade.")]
         public float wallRunEndPushSpeed = 1.5f;
@@ -145,8 +152,8 @@ namespace Rogue.Gameplay
         [Tooltip("Distância extra (além do corpo) para achar uma parede do lado.")]
         public float wallRunDetectDistance = 0.6f;
 
-        [Tooltip("Velocidade mínima na parede em relação à corrida (mantém a velocidade se já vier mais rápido).")]
-        public float wallRunSpeedFactor = 1f;
+        [Tooltip("Velocidade na parede em relação à corrida (1,2 = 20% mais rápido). Se já vier mais rápido, mantém.")]
+        public float wallRunSpeedFactor = 1.2f;
 
         [Tooltip("Impulso para cima ao entrar na parede (m/s).")]
         public float wallRunEntryUpSpeed = 3f;
@@ -175,6 +182,9 @@ namespace Rogue.Gameplay
         [Tooltip("Segundos sem poder entrar em outra parede depois de sair de uma.")]
         public float wallRunCooldown = 0.25f;
 
+        [Tooltip("Desligado (como no Rogue Agents): na parede o botão direito não mira — sem zoom de ombro e sem luneta. O tiro funciona normal.")]
+        public bool wallRunAllowAim = false;
+
         [Header("Beirada: pendurar e subir")]
         [Tooltip("Altura máxima (a partir do pé) que a mão alcança. Com o pulo de 1,25 m, alcança blocos de até ~3,3 m.")]
         public float ledgeMaxReach = 2.1f;
@@ -198,10 +208,10 @@ namespace Rogue.Gameplay
         public float hangMinTime = 0.12f;
 
         [Tooltip("Velocidade subindo a parede (m/s).")]
-        public float climbUpSpeed = 4.5f;
+        public float climbUpSpeed = 4f;
 
         [Tooltip("Velocidade passando por cima da beirada (m/s).")]
-        public float climbForwardSpeed = 3.5f;
+        public float climbForwardSpeed = 3.2f;
 
         [Tooltip("Obstáculos baixos sobem mais rápido.")]
         public float mantleSpeedMultiplier = 1.6f;

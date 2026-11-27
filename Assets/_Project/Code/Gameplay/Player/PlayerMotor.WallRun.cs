@@ -5,7 +5,8 @@ namespace Rogue.Gameplay
 {
     /// <summary>
     /// Wall run: segurando Shift e apertando Espaço perto de uma parede do lado, o personagem
-    /// corre na parede por até wallRunDuration (3 s). Solta o Shift ou acabou o tempo = cai.
+    /// corre na parede 20% mais rápido que a corrida, por até wallRunDuration (1 s) — somando todas as paredes
+    /// até tocar o chão. Solta o Shift ou acabou o tempo = cai (mesmo segurando Shift e Espaço).
     /// Espaço de novo na parede = salto direcional para onde as teclas apontam.
     /// Dá para atirar correndo na parede (o tiro não depende do modo).
     /// Não funciona em superfícies NonClimbable nem na barreira de gelo, nem na mesma parede duas vezes sem tocar o chão.
@@ -97,6 +98,7 @@ namespace Rogue.Gameplay
         private void SimulateWallRun(in PlayerInputFrame frame, float dt)
         {
             state.WallRunTimer += dt;
+            state.WallRunAirTime += dt;
             UpdateHeight(config.standHeight, dt);
 
             // Espaço na parede: salto direcional (o mesmo Espaço que iniciou não conta).
@@ -106,8 +108,8 @@ namespace Rogue.Gameplay
                 return;
             }
 
-            // Soltou o Shift ou acabou o tempo (máx. wallRunDuration = 2 s): cai.
-            if (!frame.WallRunHeld || state.WallRunTimer >= config.wallRunDuration)
+            // Soltou o Shift ou acabou o tempo (1 s somando as paredes desde o chão): cai.
+            if (!frame.WallRunHeld || state.WallRunAirTime >= config.wallRunDuration)
             {
                 // Desgruda da parede (um empurrãozinho para fora) e mantém a velocidade ao longo dela.
                 state.Velocity += state.WallNormal * config.wallRunEndPushSpeed;

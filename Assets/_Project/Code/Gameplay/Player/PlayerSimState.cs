@@ -61,6 +61,9 @@ namespace Rogue.Gameplay
 
         public bool Crouching;
 
+        /// <summary>Modo xiu (X): andando devagar, sem barulho de passo.</summary>
+        public bool QuietWalking;
+
         /// <summary>Deitado de barriga para cima (Ctrl).</summary>
         public bool Prone;
 
@@ -100,6 +103,8 @@ namespace Rogue.Gameplay
         /// <summary>Direção da corrida ao longo da parede.</summary>
         public Vector3 WallTangent;
         public float WallRunTimer;
+        /// <summary>Tempo total na parede desde que saiu do chão (o limite de 1 s vale para a soma).</summary>
+        public float WallRunAirTime;
         public float WallRunSpeed;
         public float WallRunCooldown;
         /// <summary>Última parede usada (não pode repetir a mesma antes de tocar o chão).</summary>

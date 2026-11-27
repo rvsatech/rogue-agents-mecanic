@@ -10,20 +10,42 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 05490afbcf71fc044a242ae939fc0127, type: 3}
-  m_Name: Rifle
+  m_Name: UMP
   m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.WeaponConfig
-  displayName: Rifle
+  displayName: UMP
   slot: 0
   kind: 0
   moveSpeedMultiplier: 1
   firingGroundSpeedPenalty: 0.2
-  equipTime: 0.4
+  equipTime: 0.5
   automatic: 1
-  fireRate: 10
-  damage: 20
+  fireRate: 7
+  damage: 14
+  headshotMultiplier: 2
+  chestMultiplier: 1
+  stomachMultiplier: 1
+  armMultiplier: 0.75
+  legMultiplier: 0.75
+  scopeFieldOfView: 0
+  scopedSpreadDegrees: 0
+  movingSpreadDegrees: 0
+  scopedMoveSpeedMultiplier: 1
+  unscopeAfterShotTime: 0
+  recoilVertical: 0.6
+  recoilHorizontal: 0.4
+  recoilMaxVertical: 9
+  recoilKickTime: 0.05
+  recoilRecoveryDelay: 0.12
+  recoilRecoverySpeed: 12
+  recoilCrouchFactor: 0.8
+  recoilProneFactor: 0.6
+  recoilAirFactor: 1.3
+  recoilAimFactor: 0.6
+  recoilVisualTilt: 5
   magazineSize: 30
   reserveAmmo: 120
-  infiniteReserve: 0
+  infiniteMagazine: 1
+  infiniteReserve: 1
   reloadTime: 2
   autoReloadWhenEmpty: 1
   range: 150
@@ -43,6 +65,39 @@ MonoBehaviour:
   tracerDuration: 0.05
   tracerWidth: 0.03
   muzzleFlashDuration: 0.04
+  muzzleFlashScale: 1
+  shellLength: 0.022
+  shellColor: {r: 0.86, g: 0.66, b: 0.3, a: 1}
+  action: 0
+  actionDelay: 0.2
+  actionDuration: 0.45
+  actionTravel: 0.05
+  reloadShellInserts: 0
+  pellets: 1
+  falloffStart: 0
+  falloffEnd: 0
+  falloffMinFactor: 1
+  throwableType: 0
+  throwSpeed: 16
+  shortThrowSpeed: 7
+  throwUpAngle: 8
+  fuseTime: 2.5
+  throwRecoveryTime: 0.3
+  effectRadius: 2.2
+  maxDamage: 100
+  minDamage: 30
+  flashMaxDistance: 25
+  flashFullBlindDistance: 12
+  flashMaxBlindTime: 2.5
+  flashFadeTime: 1.5
+  smokeHeight: 2.6
+  smokeDuration: 15
+  particleMaterial: {fileID: 0}
+  glowMaterial: {fileID: 0}
+  useTime: 0
+  healPercent: 0
+  itemCount: 0
+  infiniteItems: 1
   fireSound:
     clips:
     - {fileID: 8300000, guid: 6db09d9bd59ed114ea03219a02980ebf, type: 3}
@@ -100,4 +155,28 @@ MonoBehaviour:
     pitch: {x: 0.95, y: 1.05}
     spatialBlend: 1
     maxDistance: 35
-  defaultsVersion: 1
+  useCompleteSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  bounceSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  detonateSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  ringSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  defaultsVersion: 9

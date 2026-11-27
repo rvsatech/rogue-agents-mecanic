@@ -20,9 +20,31 @@ MonoBehaviour:
   equipTime: 0.15
   automatic: 0
   fireRate: 2.5
-  damage: 55
+  damage: 40
+  headshotMultiplier: 1
+  chestMultiplier: 1
+  stomachMultiplier: 1
+  armMultiplier: 1
+  legMultiplier: 1
+  scopeFieldOfView: 0
+  scopedSpreadDegrees: 0
+  movingSpreadDegrees: 0
+  scopedMoveSpeedMultiplier: 1
+  unscopeAfterShotTime: 0
+  recoilVertical: 0
+  recoilHorizontal: 0
+  recoilMaxVertical: 7
+  recoilKickTime: 0.05
+  recoilRecoveryDelay: 0.12
+  recoilRecoverySpeed: 12
+  recoilCrouchFactor: 0.8
+  recoilProneFactor: 0.6
+  recoilAirFactor: 1.3
+  recoilAimFactor: 0.6
+  recoilVisualTilt: 0
   magazineSize: 0
   reserveAmmo: 0
+  infiniteMagazine: 0
   infiniteReserve: 0
   reloadTime: 2
   autoReloadWhenEmpty: 1
@@ -43,6 +65,39 @@ MonoBehaviour:
   tracerDuration: 0.05
   tracerWidth: 0.03
   muzzleFlashDuration: 0.04
+  muzzleFlashScale: 1
+  shellLength: 0
+  shellColor: {r: 0.86, g: 0.66, b: 0.3, a: 1}
+  action: 0
+  actionDelay: 0.2
+  actionDuration: 0.45
+  actionTravel: 0
+  reloadShellInserts: 0
+  pellets: 1
+  falloffStart: 0
+  falloffEnd: 0
+  falloffMinFactor: 1
+  throwableType: 0
+  throwSpeed: 16
+  shortThrowSpeed: 7
+  throwUpAngle: 8
+  fuseTime: 2.5
+  throwRecoveryTime: 0.3
+  effectRadius: 2.2
+  maxDamage: 100
+  minDamage: 30
+  flashMaxDistance: 25
+  flashFullBlindDistance: 12
+  flashMaxBlindTime: 2.5
+  flashFadeTime: 1.5
+  smokeHeight: 2.6
+  smokeDuration: 15
+  particleMaterial: {fileID: 0}
+  glowMaterial: {fileID: 0}
+  useTime: 0
+  healPercent: 0
+  itemCount: 0
+  infiniteItems: 1
   fireSound:
     clips: []
     volume: 0.7
@@ -98,4 +153,28 @@ MonoBehaviour:
     pitch: {x: 0.94, y: 1.06}
     spatialBlend: 1
     maxDistance: 25
-  defaultsVersion: 1
+  useCompleteSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  bounceSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  detonateSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  ringSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  defaultsVersion: 9

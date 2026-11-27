@@ -1,0 +1,12 @@
+Agentes jogáveis do Rogue Agents Mecanic.
+
+Origem: corpos, cabelos, barba, sobrancelhas, olhos e texturas de pele do
+"Universal Base Characters [Standard]" da Quaternius (https://quaternius.com) — licença CC0 1.0
+(domínio público: pode usar, mudar e vender sem pedir nem creditar; o crédito fica em ThirdParty/CREDITS.md).
+
+O que foi mudado (Tools/CharGen/gerar_personagens.py):
+- ossos renomeados para os do manequim do projeto (DEF-...) com as orientações de repouso dele;
+- roupas pintadas por código e volume na malha (camisa, calça, colete, botas, luvas...);
+- cabelo + sobrancelha numa malha só; chapéus e fone feitos por código (Peca_*).
+
+Agentes.json = a lista que o menu Rogue lê (Rogue > Atualizar personagens).

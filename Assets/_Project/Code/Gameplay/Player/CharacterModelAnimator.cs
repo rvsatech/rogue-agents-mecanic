@@ -19,11 +19,14 @@ namespace Rogue.Gameplay
     ///    - Slide: quadril baixo, tronco para trás, perna da frente esticada.
     ///    - Deitado (barriga para cima): cabeça levantada olhando para os pés/mira, arma sobre a barriga.
     /// 3) Avisa os passos (evento Footstep) quando um pé encosta no chão — o som fica no ritmo da animação.
+    /// Animações novas da UAL2 (se o menu Rogue ligou): slide de verdade (desce e fica deslizando), subida da
+    /// beirada com as pernas, arremesso com o tronco (só da cintura para cima) e pouso agachando nas quedas grandes.
+    /// As armas (sacar/guardar, coice, mecanismo, recarga) ficam em CharacterModelAnimator.Weapons.cs.
     /// Feito para o manequim da Universal Animation Library (Quaternius); os nomes das
     /// animações e dos ossos ficam no Inspector para trocar de modelo depois.
     /// </summary>
     [DefaultExecutionOrder(100)]
-    public sealed class CharacterModelAnimator : MonoBehaviour
+    public sealed partial class CharacterModelAnimator : MonoBehaviour
     {
         [Header("Referências")]
         [SerializeField] private PlayerMotor motor;
@@ -37,6 +40,8 @@ namespace Rogue.Gameplay
 
         [Header("Animações (nomes dos clipes)")]
         [SerializeField] private string idleClip = "Idle_Loop";
+        [Tooltip("Andar devagar (modo xiu, lentidão ao levantar).")]
+        [SerializeField] private string walkClip = "Walk_Loop";
         [SerializeField] private string runClip = "Jog_Fwd_Loop";
         [SerializeField] private string sprintClip = "Sprint_Loop";
         [SerializeField] private string crouchIdleClip = "Crouch_Idle_Loop";
@@ -48,14 +53,68 @@ namespace Rogue.Gameplay
         [SerializeField] private string slideClip = "Crouch_Idle_Loop";
         [SerializeField] private string rollClip = "Roll";
         [SerializeField] private string proneClip = "Idle_Loop";
-        [SerializeField] private float crossFadeTime = 0.12f;
+        [SerializeField] private float crossFadeTime = 0.18f;
 
         [Tooltip("Trecho da animação de cambalhota usado (segundos): pula a preparação e o levantar lento.")]
         [SerializeField] private float rollClipStart = 0.42f;
         [SerializeField] private float rollClipEnd = 1.25f;
 
+        [Header("Animações novas (UAL2 — usadas se existirem no modelo)")]
+        [Tooltip("Clipes adicionados ao modelo ao começar (o menu Rogue liga os da Universal Animation Library 2).")]
+        [SerializeField] private AnimationClip[] extraClips;
+
+        [Header("Personagens (troca de modelo no jogo)")]
+        [Tooltip("Todas as animações do manequim (o menu Rogue liga). Entram em qualquer modelo trocado no jogo " +
+                 "(os agentes do gerador de personagens têm os mesmos ossos do manequim).")]
+        [SerializeField] private AnimationClip[] baseClips;
+
+        [Tooltip("Altura do quadril deste corpo ÷ a do manequim das animações. Corpo de perna mais comprida " +
+                 "sobe o quadril na mesma proporção (o pé continua no chão).")]
+        [SerializeField] private float hipsScale = 1f;
+
+        [Tooltip("Objeto do modelo que recebe o componente Animation quando o modelo não tem um (vazio = a raiz).")]
+        [SerializeField] private string animationHostPath = "";
+
+        [Tooltip("Slide: descida rápida para o slide (só o trecho slideStartFrom..slideStartTo) e depois o slide parado.")]
+        [SerializeField] private string slideStartClip = "Slide_Start";
+        [SerializeField] private string slideLoopClip = "Slide_Loop";
+        [SerializeField] private float slideStartFrom = 0.12f;
+        [SerializeField] private float slideStartTo = 0.5f;
+        [SerializeField] private float slideStartSpeed = 2.4f;
+
+        [Tooltip("Fim do slide: levanta do chão bem rápido (Slide_Exit) e já emenda na corrida.")]
+        [SerializeField] private string slideExitClip = "Slide_Exit";
+        [SerializeField] private float slideExitFrom = 0.05f;
+        [SerializeField] private float slideExitSpeed = 2f;
+
+        [Tooltip("Subida da beirada (mãos na borda e pernas subindo). Toca no tempo que o motor leva para subir.")]
+        [SerializeField] private string mantleClip = "ClimbUp_1m";
+        [Tooltip("Trecho usado: subida direta (do chão) começa em mantleFrom; do pendurado, em mantleFromHang.")]
+        [SerializeField] private float mantleFrom = 0.08f;
+        [SerializeField] private float mantleFromHang = 0.18f;
+        [SerializeField] private float mantleTo = 0.62f;
+
+        [Tooltip("Pouso de queda grande, parado: agacha e levanta (da UAL1).")]
+        [SerializeField] private string landClip = "Jump_Land";
+        [Tooltip("Queda (m/s para baixo) a partir da qual o pouso parado agacha. Pulo normal pousa a ~8,4 m/s; " +
+                 "11 = queda de uns 2 m.")]
+        [SerializeField] private float landHardSpeed = 11f;
+        [SerializeField] private float landClipFrom = 0.1f;
+        [SerializeField] private float landClipTo = 0.75f;
+        [SerializeField] private float landClipSpeed = 1.3f;
+
+        [Tooltip("Arremesso (só da cintura para cima): segurando = braço armado; soltou = tronco vai junto.")]
+        [SerializeField] private string throwClip = "OverhandThrow";
+        [SerializeField] private float throwWindUpTime = 0.19f;
+        [SerializeField] private float throwReleaseTime = 0.3f;
+        [SerializeField] private float throwEndTime = 0.8f;
+
         [Header("Velocidade das animações (m/s em que a animação fica natural)")]
         [SerializeField] private float runAnimationSpeed = 6f;
+
+        [Tooltip("Velocidade (m/s) em que a animação de andar fica natural; abaixo de walkMaxSpeed usa andar em vez de correr.")]
+        [SerializeField] private float walkAnimationSpeed = 1.7f;
+        [SerializeField] private float walkMaxSpeed = 3f;
         [SerializeField] private float sprintAnimationSpeed = 7.5f;
         [SerializeField] private float crouchAnimationSpeed = 2.4f;
 
@@ -64,6 +123,7 @@ namespace Rogue.Gameplay
         [SerializeField] private string spineBone = "DEF-spine.001";
         [SerializeField] private string chestBone = "DEF-spine.003";
         [SerializeField] private string neckBone = "DEF-neck";
+        [SerializeField] private string headBone = "DEF-head";
         [SerializeField] private string rightUpperArmBone = "DEF-upper_arm.R";
         [SerializeField] private string rightForearmBone = "DEF-forearm.R";
         [SerializeField] private string rightHandBone = "DEF-hand.R";
@@ -103,6 +163,21 @@ namespace Rogue.Gameplay
         [Tooltip("Correndo na parede em combate: quanto o tronco gira para a mira (o corpo fica ao longo da parede).")]
         [SerializeField] private float wallRunTorsoTwist = 90f;
 
+        [Header("Slide")]
+        [Tooltip("Deslizando atirando: quanto o tronco gira para a mira, no máximo (as pernas ficam no slide). " +
+                 "A arma alcança 30° além disso; mirando mais para trás, a cabeça e o braço viram para trás.")]
+        [SerializeField] private float slideTorsoTwist = 90f;
+
+        [Header("Atirando correndo para trás")]
+        [Tooltip("Quanto o tronco gira para a direita (o ombro da arma vai para trás).")]
+        [SerializeField] private float backShotTorsoTwist = 40f;
+
+        [Tooltip("Quanto a cabeça gira além do tronco (olha para trás por cima do ombro direito).")]
+        [SerializeField] private float backShotHeadTurn = 75f;
+
+        [Tooltip("Distância do ombro até a mão com o braço esticado para trás (metros).")]
+        [SerializeField] private float backShotArmReach = 0.5f;
+
         [Header("Passos (som)")]
         [Tooltip("O pé conta como 'no chão' abaixo desta altura (acima da altura dele apoiado), em metros.")]
         [SerializeField] private float footContactHeight = 0.025f;
@@ -117,12 +192,30 @@ namespace Rogue.Gameplay
         private bool leftFootDown = true, rightFootDown = true;
         private int wallStepIndex = int.MinValue;
 
-        private Transform hips, spine, chest, neck;
+        private Transform hips, spine, chest, neck, head;
         private Transform rUpper, rFore, rHand, lUpper, lFore, lHand;
         private Transform rThigh, rShin, rFoot, lThigh, lShin, lFoot;
 
         private string currentClip;
         private MotorMode lastMode;
+        private bool slideClipPose;
+        private bool mantleClipPose;
+        private float mantleSpeed = 1f;
+        private bool wasGrounded = true;
+        private float lowestAirSpeed;
+        // Animação de uma vez só parado (pouso forte, levantar do slide): sai na hora se andar/correr.
+        private string oneShotClip;
+        private float oneShotTimer;
+        private float oneShotSpeed = 1f;
+        private float oneShotFrom;
+        private bool oneShotRestart;
+        private bool oneShotAnySpeed;
+        private float oneShotAge;
+        private float oneShotCrouchGrace;
+        private const string ThrowLayerState = "Arremesso_Tronco";
+        private AnimationState throwState;
+        private float throwWeight;
+        private float throwTime;
         private float legTwist;
         private float torsoTwist;
         private float slideWeight;
@@ -130,12 +223,48 @@ namespace Rogue.Gameplay
         private float combatWeight;
         private float stowWeight;
         private float reloadWeight;
-        private Vector3[] magazineRestPosition;
-        private Quaternion[] magazineRestRotation;
+        private float backShotWeight;
         private readonly HashSet<string> warnedClips = new HashSet<string>();
+        // Proporções do corpo: as animações gravam o tamanho dos ossos do manequim; todo frame os ossos
+        // voltam para o tamanho do corpo atual (e o quadril sobe/desce na escala dele).
+        private Transform[] restBones;
+        private Vector3[] restPositions;
+        private Vector3 scaledHips;
+
+        /// <summary>Raiz do modelo 3D atual.</summary>
+        public Transform Model => model;
 
         private void Awake()
         {
+            // Posição original das peças das armas (carregador, ferrolho, apoio da mão): voltam para lá todo frame.
+            InitWeaponParts();
+            BindModel(model, hipsScale, animationHostPath);
+        }
+
+        /// <summary>
+        /// Liga (ou troca, no meio do jogo) o modelo 3D: acha os ossos, coloca as animações no componente
+        /// Animation do modelo e guarda o tamanho dos ossos dele. newHipsScale: altura do quadril ÷ a do manequim.
+        /// </summary>
+        public void BindModel(Transform newModel, float newHipsScale = 1f, string newAnimationHostPath = null)
+        {
+            model = newModel;
+            hipsScale = newHipsScale > 0.01f ? newHipsScale : 1f;
+            animationHostPath = newAnimationHostPath ?? "";
+            hips = spine = chest = neck = head = null;
+            rUpper = rFore = rHand = lUpper = lFore = lHand = null;
+            rThigh = rShin = rFoot = lThigh = lShin = lFoot = null;
+            animationComponent = null;
+            throwState = null;
+            throwWeight = 0f;
+            throwTime = 0f;
+            currentClip = null;
+            oneShotClip = null;
+            oneShotTimer = 0f;
+            restBones = null;
+            restPositions = null;
+            scaledHips = new Vector3(float.NaN, 0f, 0f);
+            warnedClips.Clear();
+
             if (model != null)
             {
                 var bones = new Dictionary<string, Transform>();
@@ -148,6 +277,7 @@ namespace Rogue.Gameplay
                 spine = Bone(bones, spineBone);
                 chest = Bone(bones, chestBone);
                 neck = Bone(bones, neckBone);
+                head = Bone(bones, headBone);
                 rUpper = Bone(bones, rightUpperArmBone);
                 rFore = Bone(bones, rightForearmBone);
                 rHand = Bone(bones, rightHandBone);
@@ -166,19 +296,40 @@ namespace Rogue.Gameplay
             if (lFoot != null) leftFootRest = Mathf.Clamp(lFoot.position.y - transform.position.y, 0.02f, 0.3f);
             if (rFoot != null) rightFootRest = Mathf.Clamp(rFoot.position.y - transform.position.y, 0.02f, 0.3f);
 
-            // Posição original dos carregadores (voltam para lá depois da recarga).
-            magazineRestPosition = new Vector3[PlayerWeapons.SlotCount];
-            magazineRestRotation = new Quaternion[PlayerWeapons.SlotCount];
-            for (int i = 0; i < PlayerWeapons.SlotCount; i++)
+            // Tamanho dos ossos deste corpo (tudo abaixo do quadril), antes de qualquer animação.
+            if (hips != null)
             {
-                WeaponBinding binding = weapons != null ? weapons.GetSlot(i) : null;
-                if (binding == null || binding.magazine == null) continue;
-                magazineRestPosition[i] = binding.magazine.localPosition;
-                magazineRestRotation[i] = binding.magazine.localRotation;
+                Transform[] below = hips.GetComponentsInChildren<Transform>(true);
+                var bones = new List<Transform>(below.Length);
+                foreach (Transform t in below)
+                {
+                    if (t == hips || t.GetComponent<Renderer>() != null) continue;
+                    bones.Add(t);
+                }
+                restBones = bones.ToArray();
+                restPositions = new Vector3[restBones.Length];
+                for (int i = 0; i < restBones.Length; i++) restPositions[i] = restBones[i].localPosition;
             }
 
-            if (animationComponent == null && model != null)
+            if (model != null)
+            {
                 animationComponent = model.GetComponentInChildren<Animation>();
+                // Modelo trocado no jogo (agente): não vem com animações; usa as do manequim.
+                if (animationComponent == null && baseClips != null && baseClips.Length > 0)
+                {
+                    Transform host = string.IsNullOrEmpty(animationHostPath) ? null : model.Find(animationHostPath);
+                    if (host == null) host = model;
+                    // As animações do manequim procuram "Rig/root/DEF-hips/..." a partir de quem tem o Animation.
+                    // Modelo importado sem animação e com uma raiz só chega com a raiz = o próprio "Rig":
+                    // aí ganha um pai em volta, para os caminhos baterem.
+                    if (host == model && model.Find(RigNodeName) == null && model.Find(RootBoneName) != null)
+                    {
+                        model = WrapModel(model);
+                        host = model;
+                    }
+                    animationComponent = host.gameObject.AddComponent<Animation>();
+                }
+            }
 
             if (animationComponent == null)
             {
@@ -187,12 +338,95 @@ namespace Rogue.Gameplay
                 return;
             }
 
+            // Clipes do manequim (para modelos trocados) e extras (UAL2): entram no componente de animação do modelo.
+            AddClips(baseClips);
+            AddClips(extraClips);
+
             animationComponent.cullingType = AnimationCullingType.AlwaysAnimate;
             foreach (AnimationState state in animationComponent)
                 state.wrapMode = WrapMode.Loop;
 
-            AnimationState roll = animationComponent[rollClip];
-            if (roll != null) roll.wrapMode = WrapMode.ClampForever;
+            foreach (string once in new[] { rollClip, slideStartClip, slideExitClip, mantleClip, landClip })
+            {
+                AnimationState state = animationComponent[once];
+                if (state != null) state.wrapMode = WrapMode.ClampForever;
+            }
+
+            // Sem as animações novas, o slide e a subida usam as poses feitas por código (como antes).
+            slideClipPose = HasClip(slideLoopClip);
+            mantleClipPose = HasClip(mantleClip);
+
+            // Arremesso: cópia do clipe numa camada de cima, só do tronco para cima (as pernas continuam correndo).
+            AnimationState throwSource = HasClip(throwClip) ? animationComponent[throwClip] : null;
+            if (throwSource != null && throwSource.clip != null && spine != null)
+            {
+                animationComponent.AddClip(throwSource.clip, ThrowLayerState);
+                throwState = animationComponent[ThrowLayerState];
+                if (throwState != null)
+                {
+                    throwState.layer = 1;
+                    throwState.AddMixingTransform(spine, true);
+                    throwState.wrapMode = WrapMode.ClampForever;
+                    throwState.weight = 0f;
+                    throwState.speed = 0f;
+                    throwState.enabled = false;
+                }
+            }
+        }
+
+        private bool HasClip(string clip) => animationComponent != null && !string.IsNullOrEmpty(clip) && animationComponent[clip] != null;
+
+        private const string RigNodeName = "Rig";
+        private const string RootBoneName = "root";
+
+        /// <summary>Põe um objeto-pai em volta do "Rig" (mesmo nome, lugar e tamanho) e devolve o pai.</summary>
+        private static Transform WrapModel(Transform rig)
+        {
+            var wrapper = new GameObject(rig.name).transform;
+            wrapper.SetParent(rig.parent, false);
+            wrapper.localPosition = rig.localPosition;
+            wrapper.localRotation = rig.localRotation;
+            wrapper.localScale = rig.localScale;
+            rig.SetParent(wrapper, false);
+            rig.localPosition = Vector3.zero;
+            rig.localRotation = Quaternion.identity;
+            rig.localScale = Vector3.one;
+            rig.name = RigNodeName;
+            return wrapper;
+        }
+
+        private void AddClips(AnimationClip[] clips)
+        {
+            if (clips == null) return;
+            foreach (AnimationClip clip in clips)
+            {
+                if (clip == null || animationComponent[clip.name] != null) continue;
+                if (!clip.legacy)
+                {
+                    Debug.LogWarning($"[CharacterModelAnimator] '{clip.name}' não é Legacy (rode o menu Rogue de novo).", this);
+                    continue;
+                }
+                animationComponent.AddClip(clip, clip.name);
+            }
+        }
+
+        /// <summary>
+        /// Depois da animação: cada osso volta para o tamanho do corpo atual (as animações vêm com o tamanho
+        /// do manequim) e o quadril sobe/desce na escala do corpo. No manequim não muda nada.
+        /// </summary>
+        private void ApplyBodyProportions()
+        {
+            if (restBones == null) return;
+            for (int i = 0; i < restBones.Length; i++)
+            {
+                if (restBones[i] != null) restBones[i].localPosition = restPositions[i];
+            }
+
+            if (hips == null || Mathf.Abs(hipsScale - 1f) < 0.0001f) return;
+            Vector3 p = hips.localPosition;
+            if (p == scaledHips) return; // a animação não mexeu no quadril desde a última vez
+            scaledHips = p * hipsScale;
+            hips.localPosition = scaledHips;
         }
 
         // ===================== 1) Escolha da animação =====================
@@ -231,12 +465,15 @@ namespace Rogue.Gameplay
             }
             legTwist = Mathf.MoveTowards(legTwist, targetTwist, 600f * dt);
 
-            // Parede: o corpo fica ao longo dela; em combate só o tronco gira para a mira (com limite).
+            // Parede e slide: o corpo segue a parede/o slide; em combate só o tronco gira para a mira (com limite —
+            // nunca dá a volta inteira). Mirando para trás no slide, quem vira é a cabeça e o braço (pose de tiro para trás).
             float targetTorso = 0f;
-            if (combat && s.Mode == MotorMode.WallRun && input != null)
+            bool twistMode = s.Mode == MotorMode.WallRun || s.Mode == MotorMode.Slide;
+            if (combat && twistMode && input != null && (visual == null || !visual.BackShooting))
             {
+                float torsoLimit = s.Mode == MotorMode.WallRun ? wallRunTorsoTwist : slideTorsoTwist;
                 Vector3 aimFlat = Quaternion.Euler(0f, input.Yaw, 0f) * Vector3.forward;
-                targetTorso = Mathf.Clamp(Vector3.SignedAngle(bodyForward, aimFlat, Vector3.up), -wallRunTorsoTwist, wallRunTorsoTwist);
+                targetTorso = Mathf.Clamp(Vector3.SignedAngle(bodyForward, aimFlat, Vector3.up), -torsoLimit, torsoLimit);
             }
             torsoTwist = Mathf.MoveTowards(torsoTwist, targetTorso, 600f * dt);
 
@@ -249,6 +486,24 @@ namespace Rogue.Gameplay
             stowWeight = Mathf.MoveTowards(stowWeight, hanging || rolling ? 1f : 0f, dt / 0.1f);
             bool reloading = weapons != null && weapons.IsReloading;
             reloadWeight = Mathf.MoveTowards(reloadWeight, reloading ? 1f : 0f, dt / 0.12f);
+            bool backShooting = visual != null && visual.BackShooting;
+            backShotWeight = Mathf.MoveTowards(backShotWeight, backShooting ? 1f : 0f, dt / 0.12f);
+
+            // Pouso: guarda a maior velocidade de queda no ar; pousou forte parado = agacha (animação de pouso).
+            if (!s.Grounded) lowestAirSpeed = Mathf.Min(lowestAirSpeed, s.Velocity.y);
+            if (s.Grounded && !wasGrounded && s.Mode == MotorMode.Locomotion && -lowestAirSpeed >= landHardSpeed)
+                StartOneShot(landClip, landClipFrom, landClipTo, landClipSpeed, anySpeed: false, crouchGrace: 0f);
+            if (s.Grounded) lowestAirSpeed = 0f;
+            wasGrounded = s.Grounded;
+
+            // Fim do slide no chão: levanta rápido (o motor ainda fica agachado 1 tick antes de levantar).
+            if (lastMode == MotorMode.Slide && s.Mode == MotorMode.Locomotion && s.Grounded && slideClipPose)
+                StartOneShot(slideExitClip, slideExitFrom, 0.5f, slideExitSpeed, anySpeed: true, crouchGrace: 0.08f);
+            if (oneShotTimer > 0f)
+            {
+                oneShotTimer -= dt;
+                oneShotAge += dt;
+            }
 
             if (animationComponent == null)
             {
@@ -256,15 +511,46 @@ namespace Rogue.Gameplay
                 return;
             }
 
+            UpdateThrowLayer(s, dt);
+
             string clip;
             float clipSpeed = 1f;
             float restartAt = -1f;
             float fade = -1f;
 
+            // Saindo do slide/da subida: troca um pouco mais devagar (sem estalo).
+            if ((lastMode == MotorMode.Slide && s.Mode != MotorMode.Slide) ||
+                (lastMode == MotorMode.LedgeClimb && s.Mode != MotorMode.LedgeClimb))
+                fade = 0.18f;
+
             switch (s.Mode)
             {
                 case MotorMode.Slide:
-                    clip = slideClip;
+                    if (slideClipPose)
+                    {
+                        // Desce rápido para o slide (trecho do Slide_Start) e depois fica no Slide_Loop.
+                        AnimationState start = HasClip(slideStartClip) ? animationComponent[slideStartClip] : null;
+                        if (start != null && lastMode != MotorMode.Slide)
+                        {
+                            clip = slideStartClip;
+                            clipSpeed = slideStartSpeed;
+                            restartAt = slideStartFrom;
+                        }
+                        else if (start != null && currentClip == slideStartClip && start.time < slideStartTo)
+                        {
+                            clip = slideStartClip;
+                            clipSpeed = slideStartSpeed;
+                        }
+                        else
+                        {
+                            clip = slideLoopClip;
+                            fade = 0.12f;
+                        }
+                    }
+                    else
+                    {
+                        clip = slideClip;
+                    }
                     break;
                 case MotorMode.Roll:
                     clip = rollClip;
@@ -280,7 +566,22 @@ namespace Rogue.Gameplay
                     clipSpeed = 0.5f;
                     break;
                 case MotorMode.LedgeClimb:
-                    clip = s.ClimbPhase == 0 ? hangClip : climbClip;
+                    if (mantleClipPose)
+                    {
+                        // Toca a subida no tempo que o motor vai levar (subir até a borda + passar por cima).
+                        if (lastMode != MotorMode.LedgeClimb)
+                        {
+                            float from = s.QuickMantle ? mantleFrom : mantleFromHang;
+                            mantleSpeed = (mantleTo - from) / Mathf.Max(0.12f, ExpectedClimbTime(s, cfg));
+                            restartAt = from;
+                        }
+                        clip = mantleClip;
+                        clipSpeed = mantleSpeed;
+                    }
+                    else
+                    {
+                        clip = s.ClimbPhase == 0 ? hangClip : climbClip;
+                    }
                     break;
                 case MotorMode.GetUp:
                     // Etapa 1: dobra os joelhos e senta (agachado). Etapa 2: mistura devagar até ficar em pé.
@@ -300,6 +601,15 @@ namespace Rogue.Gameplay
                     {
                         clip = proneClip;
                     }
+                    else if (oneShotTimer > 0f && s.Grounded && (oneShotAnySpeed || speed < 2.5f) &&
+                             (!s.Crouching || oneShotAge < oneShotCrouchGrace))
+                    {
+                        // Pouso forte parado (andou/correu, sai na hora) ou levantar do slide: toca uma vez.
+                        clip = oneShotClip;
+                        clipSpeed = oneShotSpeed;
+                        if (oneShotRestart) restartAt = oneShotFrom;
+                        oneShotRestart = false;
+                    }
                     else if (!s.Grounded)
                     {
                         clip = airClip;
@@ -309,6 +619,11 @@ namespace Rogue.Gameplay
                         bool moving = speed > 0.3f;
                         clip = moving ? crouchMoveClip : crouchIdleClip;
                         if (moving) clipSpeed = Mathf.Max(0.5f, speed / crouchAnimationSpeed);
+                    }
+                    else if (speed > 0.3f && (s.QuietWalking || speed < walkMaxSpeed))
+                    {
+                        clip = walkClip; // devagar: anda de verdade (modo xiu, lentidão ao levantar)
+                        clipSpeed = Mathf.Max(0.5f, speed / walkAnimationSpeed);
                     }
                     else if (speed > 0.3f)
                     {
@@ -323,11 +638,72 @@ namespace Rogue.Gameplay
                     break;
             }
 
-            if (backpedal && (clip == runClip || clip == sprintClip || clip == crouchMoveClip))
+            if (clip != oneShotClip)
+            {
+                oneShotTimer = 0f; // mexeu: acabou a animação de uma vez
+                oneShotRestart = false;
+            }
+
+            if (backpedal && (clip == runClip || clip == sprintClip || clip == crouchMoveClip || clip == walkClip))
                 clipSpeed = -clipSpeed; // animação de correr tocada ao contrário = correr de ré
 
             Play(clip, clipSpeed, restartAt, fade);
             lastMode = s.Mode;
+        }
+
+        /// <summary>
+        /// Começa uma animação de uma vez só (trecho from..to), se ela existir no modelo.
+        /// anySpeed: toca mesmo andando. crouchGrace: segundos em que vale mesmo agachado (o motor levanta logo depois).
+        /// </summary>
+        private void StartOneShot(string clip, float from, float to, float clipSpeed, bool anySpeed, float crouchGrace)
+        {
+            if (!HasClip(clip)) return;
+            oneShotClip = clip;
+            oneShotFrom = from;
+            oneShotSpeed = Mathf.Max(0.1f, clipSpeed);
+            oneShotTimer = Mathf.Max(0.05f, (to - from) / oneShotSpeed);
+            oneShotRestart = true;
+            oneShotAnySpeed = anySpeed;
+            oneShotCrouchGrace = crouchGrace;
+            oneShotAge = 0f;
+        }
+
+        /// <summary>Tempo que o motor leva na subida: sobe até a borda e anda por cima dela.</summary>
+        private float ExpectedClimbTime(in PlayerSimState s, MovementConfig cfg)
+        {
+            if (cfg == null || motor == null) return 0.5f;
+            float multiplier = s.QuickMantle ? cfg.mantleSpeedMultiplier : 1f;
+            float rise = Mathf.Max(0.1f, s.LedgeTopY + 0.05f - motor.transform.position.y);
+            Vector3 toStand = s.LedgeStandPoint - motor.transform.position;
+            float across = new Vector2(toStand.x, toStand.z).magnitude;
+            return rise / Mathf.Max(0.1f, cfg.climbUpSpeed * multiplier) +
+                   across / Mathf.Max(0.1f, cfg.climbForwardSpeed * multiplier);
+        }
+
+        /// <summary>
+        /// Arremesso no tronco (camada de cima): segurando o botão, pose de braço armado; soltou, o tronco acompanha
+        /// o lançamento. A mão da granada continua no código (UpdateWeapons). Só em pé/andando/no ar.
+        /// </summary>
+        private void UpdateThrowLayer(in PlayerSimState s, float dt)
+        {
+            if (throwState == null) return;
+
+            WeaponConfig cfg = weapons != null ? weapons.CurrentConfig : null;
+            bool throwable = cfg != null && cfg.kind == WeaponKind.Throwable;
+            bool aiming = throwable && weapons.ThrowAiming && !weapons.IsEquipping;
+            bool throwing = weapons != null && weapons.IsThrowing;
+            bool allowed = s.Mode == MotorMode.Locomotion && !s.Prone && stowWeight < 0.5f;
+
+            float target = allowed && (aiming || throwing) ? 1f : 0f;
+            throwWeight = Mathf.MoveTowards(throwWeight, target, dt / (target > throwWeight ? 0.12f : 0.2f));
+
+            if (throwing) throwTime = Mathf.Lerp(throwReleaseTime, throwEndTime, Smooth01(weapons.ThrowProgress));
+            else if (aiming) throwTime = throwWindUpTime;
+
+            throwState.enabled = throwWeight > 0.001f;
+            throwState.weight = throwWeight;
+            throwState.time = throwTime;
+            throwState.speed = 0f;
         }
 
         // ===================== 2) Ajustes por código =====================
@@ -335,6 +711,7 @@ namespace Rogue.Gameplay
         private void LateUpdate()
         {
             if (motor == null || model == null) return;
+            ApplyBodyProportions();
 
             PlayerSimState s = motor.State;
             Vector3 up = Vector3.up;
@@ -358,17 +735,26 @@ namespace Rogue.Gameplay
             if (spine != null && Mathf.Abs(torsoTwist) > 0.01f)
                 spine.rotation = Quaternion.AngleAxis(torsoTwist, up) * spine.rotation;
 
-            // Parede: a arma não aponta além do que o tronco alcança (nunca para as costas).
-            if (s.Mode == MotorMode.WallRun && visual != null)
+            // Deitado: a arma fica no cone na frente do corpo (o corpo gira devagar atrás da mira).
+            if (proneWeight > 0.5f && visual != null)
             {
                 float relative = Mathf.DeltaAngle(visual.BodyYaw, aimYaw);
-                float limit = wallRunTorsoTwist + 30f;
+                float limit = visual.ProneAimFreeAngle + 10f;
                 if (Mathf.Abs(relative) > limit)
                     aimDirection = Quaternion.Euler(pitch, visual.BodyYaw + Mathf.Sign(relative) * limit, 0f) * Vector3.forward;
             }
 
-            // Slide: quadril baixo, tronco para trás, pernas por IK na direção do slide.
-            if (slideWeight > 0f && hips != null)
+            // Parede e slide: a arma não aponta além do que o tronco alcança (nunca para as costas).
+            if (visual != null && (s.Mode == MotorMode.WallRun || (s.Mode == MotorMode.Slide && !visual.BackShooting)))
+            {
+                float relative = Mathf.DeltaAngle(visual.BodyYaw, aimYaw);
+                float limit = (s.Mode == MotorMode.WallRun ? wallRunTorsoTwist : slideTorsoTwist) + 30f;
+                if (Mathf.Abs(relative) > limit)
+                    aimDirection = Quaternion.Euler(pitch, visual.BodyYaw + Mathf.Sign(relative) * limit, 0f) * Vector3.forward;
+            }
+
+            // Slide sem a animação nova: quadril baixo, tronco para trás, pernas por IK na direção do slide.
+            if (slideWeight > 0f && hips != null && !slideClipPose)
             {
                 Vector3 slideForward = new Vector3(s.SlideDirection.x, 0f, s.SlideDirection.z);
                 slideForward = slideForward.sqrMagnitude > 0.0001f ? slideForward.normalized : forward;
@@ -404,13 +790,24 @@ namespace Rogue.Gameplay
                     neck.rotation = Quaternion.AngleAxis(proneHeadPitch * proneWeight, right) * neck.rotation;
             }
 
+            // Correndo para trás atirando: o corpo segue para onde corre; o tronco gira um pouco para a direita e a
+            // cabeça olha para trás por cima do ombro direito (o braço da arma aponta para trás em UpdateWeapons).
+            if (backShotWeight > 0f)
+            {
+                float w = Smooth01(backShotWeight);
+                if (spine != null) spine.rotation = Quaternion.AngleAxis(backShotTorsoTwist * 0.5f * w, up) * spine.rotation;
+                if (chest != null) chest.rotation = Quaternion.AngleAxis(backShotTorsoTwist * 0.5f * w, up) * chest.rotation;
+                if (neck != null) neck.rotation = Quaternion.AngleAxis(backShotHeadTurn * 0.45f * w, up) * neck.rotation;
+                if (head != null) head.rotation = Quaternion.AngleAxis(backShotHeadTurn * 0.55f * w, up) * head.rotation;
+            }
+
             // Deitado, a arma fica sempre apontada para frente.
             float holdWeight = Mathf.Max(combatWeight, proneWeight);
 
             // Peito acompanha a mira (cima/baixo). Deitado de costas: o peito só levanta (nunca entra no chão).
             if (chest != null && holdWeight > 0f)
             {
-                float chestAngle = pitch * chestAimPitchFactor * holdWeight;
+                float chestAngle = pitch * chestAimPitchFactor * holdWeight * (1f - backShotWeight); // para trás: só o braço mira
                 if (proneWeight > 0f)
                     chestAngle = Mathf.Lerp(chestAngle, proneChestLift + Mathf.Max(0f, chestAngle), proneWeight);
                 chest.rotation = Quaternion.AngleAxis(chestAngle, right) * chest.rotation;
@@ -487,221 +884,6 @@ namespace Rogue.Gameplay
                     OnWall = false
                 });
             }
-        }
-
-        // ===================== Armas =====================
-
-        private void UpdateWeapons(in PlayerSimState s, Vector3 aimDirection, Vector3 forward, Vector3 right, Vector3 up,
-            float holdWeight, float proneWeight)
-        {
-            if (weapons == null) return;
-
-            Vector3 chestPosition = chest != null ? chest.position : transform.position + up * 1.35f;
-            int current = weapons.CurrentSlot;
-            float draw = Smooth01(weapons.EquipProgress);
-            float inHand = draw * (1f - stowWeight);
-
-            // Carregadores no lugar (a recarga tira o da arma atual mais abaixo).
-            for (int i = 0; i < PlayerWeapons.SlotCount; i++)
-            {
-                WeaponBinding binding = weapons.GetSlot(i);
-                if (binding != null && binding.magazine != null)
-                    binding.magazine.SetLocalPositionAndRotation(magazineRestPosition[i], magazineRestRotation[i]);
-            }
-
-            // Recarregando: a arma vem para a frente do peito (mesmo sem estar mirando).
-            WeaponBinding equipped = weapons.Current;
-            bool isGun = equipped != null && equipped.IsValid && equipped.config.kind == WeaponKind.Hitscan;
-            float gunReload = isGun ? reloadWeight : 0f;
-            if (isGun) holdWeight = Mathf.Max(holdWeight, gunReload);
-
-            // 1) Posiciona todas as armas: a atual na mão (sacando = vindo do coldre), as outras no coldre.
-            for (int i = 0; i < PlayerWeapons.SlotCount; i++)
-            {
-                WeaponBinding binding = weapons.GetSlot(i);
-                if (binding == null || !binding.IsValid) continue;
-
-                GetHolsterPose(i, chestPosition, out Vector3 holsterPosition, out Quaternion holsterRotation);
-
-                if (i != current)
-                {
-                    binding.model.SetPositionAndRotation(holsterPosition, holsterRotation);
-                    continue;
-                }
-
-                GetHandPose(binding, chestPosition, aimDirection, forward, up, holdWeight, proneWeight, gunReload,
-                    out Vector3 handPosition, out Quaternion handRotation);
-
-                binding.model.SetPositionAndRotation(
-                    Vector3.Lerp(holsterPosition, handPosition, inHand),
-                    Quaternion.Slerp(holsterRotation, handRotation, inHand));
-            }
-
-            // 2) Braços na arma (IK).
-            WeaponBinding currentWeapon = weapons.Current;
-            if (currentWeapon == null || !currentWeapon.IsValid) return;
-
-            float armWeight = holdWeight * inHand;
-            if (currentWeapon.config.kind == WeaponKind.Melee)
-            {
-                KnifeArms(currentWeapon, chestPosition, aimDirection, right, up, armWeight, inHand);
-            }
-            else if (armWeight > 0f)
-            {
-                SolveRightArm(currentWeapon.model.position, aimDirection, right, up, armWeight);
-                if (currentWeapon.config.twoHanded && currentWeapon.supportGrip != null)
-                {
-                    if (gunReload > 0f)
-                        ReloadLeftHand(currentWeapon, current, right, up, armWeight);
-                    else
-                        SolveLeftArm(currentWeapon.supportGrip.position, right, up, armWeight);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Recarga: a mão esquerda vai ao carregador, tira, leva até a cintura (troca),
-        /// volta, encaixa e retorna ao apoio da arma. O carregador acompanha a mão no meio do caminho.
-        /// </summary>
-        private void ReloadLeftHand(WeaponBinding weapon, int slot, Vector3 right, Vector3 up, float weight)
-        {
-            float p = weapons.ReloadProgress;
-            Vector3 grip = weapon.supportGrip.position;
-            Vector3 well = weapon.magazine != null
-                ? weapon.model.TransformPoint(magazineRestPosition[slot])
-                : grip - up * 0.08f;
-            Vector3 hipPosition = hips != null ? hips.position : transform.position + up * 0.9f;
-            Vector3 pouch = hipPosition - transform.right * 0.16f + transform.forward * 0.06f;
-
-            Vector3 target;
-            if (p < 0.25f) target = Vector3.Lerp(grip, well, p / 0.25f);
-            else if (p < 0.5f) target = Vector3.Lerp(well, pouch, (p - 0.25f) / 0.25f);
-            else if (p < 0.75f) target = Vector3.Lerp(pouch, well, (p - 0.5f) / 0.25f);
-            else target = Vector3.Lerp(well, grip, (p - 0.75f) / 0.25f);
-
-            SolveLeftArm(target, right, up, weight);
-
-            // Carregador na mão esquerda enquanto está fora da arma.
-            if (weapon.magazine != null && lHand != null && p > 0.25f && p < 0.75f)
-                weapon.magazine.position = lHand.position;
-        }
-
-        /// <summary>Pose da arma na mão: abaixada (seguindo a animação) ou mirando (na frente do peito).</summary>
-        private void GetHandPose(WeaponBinding binding, Vector3 chestPosition, Vector3 aimDirection, Vector3 forward,
-            Vector3 up, float holdWeight, float proneWeight, float reload, out Vector3 position, out Quaternion rotation)
-        {
-            WeaponConfig cfg = binding.config;
-
-            Vector3 animatedHand = rHand != null ? rHand.position : chestPosition - up * 0.3f;
-            Quaternion lowRotation = cfg.kind == WeaponKind.Melee
-                ? Quaternion.LookRotation((forward * 0.4f - up * 0.9f).normalized, forward)
-                : Quaternion.LookRotation((forward * 0.85f - up * 0.5f).normalized, up);
-
-            Quaternion aimRotation = Quaternion.LookRotation(aimDirection, up);
-            Vector3 offset = Vector3.Lerp(cfg.aimHoldOffset, proneHoldOffset, proneWeight);
-
-            // Recarregando: arma inclinada (cano para baixo e de lado) e mais perto do corpo.
-            if (reload > 0f)
-            {
-                offset += new Vector3(-0.03f, -0.06f, -0.08f) * reload;
-                aimRotation *= Quaternion.Euler(28f * reload, 0f, -22f * reload);
-            }
-
-            Vector3 aimPosition = chestPosition + Quaternion.LookRotation(aimDirection, up) * offset;
-
-            if (cfg.kind == WeaponKind.Hitscan)
-            {
-                float sinceShot = Time.time - weapons.LastShotTime;
-                aimPosition -= aimDirection * (cfg.recoilDistance * Mathf.Clamp01(1f - sinceShot / 0.08f));
-            }
-
-            position = Vector3.Lerp(animatedHand, aimPosition, holdWeight);
-            rotation = Quaternion.Slerp(lowRotation, aimRotation, holdWeight);
-        }
-
-        /// <summary>
-        /// Coldres (usam os eixos do próprio corpo, então funcionam deitado também):
-        /// 1 rifle nas costas · 2 pistola na coxa direita · 3 faca na cintura esquerda · 4 gelo no cinto.
-        /// </summary>
-        private void GetHolsterPose(int slot, Vector3 chestPosition, out Vector3 position, out Quaternion rotation)
-        {
-            Vector3 bodyUp = transform.up;
-            Vector3 bodyForward = transform.forward;
-            Vector3 bodyRight = transform.right;
-            Vector3 hipPosition = hips != null ? hips.position : transform.position + bodyUp * 0.9f;
-
-            switch (slot)
-            {
-                case 0: // rifle nas costas, na diagonal
-                    position = chestPosition - bodyForward * 0.2f + bodyUp * 0.02f;
-                    rotation = Quaternion.LookRotation((-bodyUp * 0.85f + bodyRight * 0.5f).normalized, -bodyForward);
-                    break;
-                case 1: // pistola na coxa direita
-                    Vector3 thigh = rThigh != null ? rThigh.position : hipPosition + bodyRight * 0.1f;
-                    position = thigh + bodyRight * 0.13f - bodyUp * 0.16f + bodyForward * 0.03f;
-                    rotation = Quaternion.LookRotation(-bodyUp, bodyForward);
-                    break;
-                case 2: // faca na cintura esquerda, atrás
-                    position = hipPosition - bodyRight * 0.17f - bodyForward * 0.1f + bodyUp * 0.02f;
-                    rotation = Quaternion.LookRotation((-bodyUp * 0.7f - bodyForward * 0.3f).normalized, -bodyRight);
-                    break;
-                default: // gelo no cinto, na frente à esquerda
-                    position = hipPosition - bodyRight * 0.12f + bodyForward * 0.13f - bodyUp * 0.04f;
-                    rotation = Quaternion.LookRotation(-bodyUp, bodyForward);
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Faca: em guarda (mirando) ou golpe em arco (da direita-cima para a esquerda-baixo,
-        /// alternando o lado a cada golpe). A faca acompanha a mão depois do IK.
-        /// </summary>
-        private void KnifeArms(WeaponBinding knife, Vector3 chestPosition, Vector3 aimDirection, Vector3 right, Vector3 up,
-            float guardWeight, float inHand)
-        {
-            Quaternion aimRotation = Quaternion.LookRotation(aimDirection, up);
-            float slashWeight = 0f;
-            Vector3 bladeDirection = aimDirection;
-
-            if (weapons.IsMeleeAttacking && inHand > 0f)
-            {
-                float progress = weapons.MeleeProgress;
-                float side = weapons.MeleeAttackCount % 2 == 0 ? 1f : -1f;
-                Vector3 start = new Vector3(0.32f * side, 0.28f, 0.25f);
-                Vector3 control = new Vector3(0.1f * side, 0.05f, 0.7f);
-                Vector3 end = new Vector3(-0.22f * side, -0.18f, 0.5f);
-
-                // 0-15%: prepara · 15-60%: corta · 60-100%: volta.
-                float t = Mathf.InverseLerp(0.15f, 0.6f, progress);
-                Vector3 local = Bezier(start, control, end, t);
-                Vector3 tangent = BezierTangent(start, control, end, t);
-
-                slashWeight = (progress < 0.75f ? 1f : Mathf.InverseLerp(1f, 0.75f, progress)) * inHand;
-                SolveRightArm(chestPosition + aimRotation * local, aimDirection, right, up, slashWeight);
-                if (tangent.sqrMagnitude > 0.0001f) bladeDirection = aimRotation * tangent.normalized;
-            }
-
-            float remainingGuard = guardWeight * (1f - slashWeight);
-            if (slashWeight <= 0f && remainingGuard > 0f)
-                SolveRightArm(knife.model.position, aimDirection, right, up, remainingGuard);
-
-            // Faca na mão depois do IK.
-            if (rHand != null && (slashWeight > 0f || remainingGuard > 0f))
-                knife.model.SetPositionAndRotation(rHand.position, Quaternion.LookRotation(bladeDirection, up));
-        }
-
-        private void SolveRightArm(Vector3 target, Vector3 aimDirection, Vector3 right, Vector3 up, float weight)
-        {
-            if (rUpper == null) return;
-            Vector3 elbowPole = rUpper.position + right * 0.35f - up * 0.5f - aimDirection * 0.2f;
-            TwoBoneIK.Solve(rUpper, rFore, rHand, target, elbowPole, weight);
-        }
-
-        private void SolveLeftArm(Vector3 target, Vector3 right, Vector3 up, float weight)
-        {
-            if (lUpper == null) return;
-            Vector3 elbowPole = lUpper.position - right * 0.35f - up * 0.5f;
-            TwoBoneIK.Solve(lUpper, lFore, lHand, target, elbowPole, weight);
         }
 
         private void HandsOnLedge(in PlayerSimState s, Vector3 up)

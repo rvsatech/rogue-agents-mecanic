@@ -83,6 +83,7 @@ namespace Rogue.Gameplay
             PreviousPosition = transform.position;
 
             UpdateTimers(frame, dt);
+            if (state.Mode != MotorMode.Locomotion || state.Prone) state.QuietWalking = false;
 
             switch (state.Mode)
             {
@@ -114,6 +115,8 @@ namespace Rogue.Gameplay
                 ? config.rollBufferTime
                 : Mathf.Max(0f, state.RollBufferTimer - dt);
             state.WallRunCooldown = Mathf.Max(0f, state.WallRunCooldown - dt);
+            if (state.Grounded && state.Mode != MotorMode.WallRun)
+                state.WallRunAirTime = 0f; // pisou no chão (inclusive depois de subir uma beirada): parede volta a valer
             state.LedgeCooldown = Mathf.Max(0f, state.LedgeCooldown - dt);
             state.GetUpTimer = Mathf.Max(0f, state.GetUpTimer - dt);
 
@@ -131,6 +134,7 @@ namespace Rogue.Gameplay
             state.TimeSinceLanded = 0f;
             state.JumpedSinceGrounded = false;
             state.HasLastWall = false; // pode usar a mesma parede de novo
+            state.WallRunAirTime = 0f; // tempo de parede volta a valer
         }
 
         private MovementStateId ResolveStateId()

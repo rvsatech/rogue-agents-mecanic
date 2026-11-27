@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 245b5abe97d32f74c9bb5b1db9a7cef6, type: 3}
+  m_Name: Faisca
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.CharacterDefinition
+  id: faisca
+  displayName: "Fa\xEDsca"
+  description: 'Hacker: agasalho esportivo e fone.'
+  model: {fileID: -7504184398531512168, guid: 981c469f39074d38a4a99b034bfdfed5, type: 3}
+  bodyHeight: 1.7750511
+  hipsScale: 1.01618
+  animationHostPath: 
+  skins:
+  - id: padrao
+    displayName: "Padr\xE3o"
+    body: {fileID: 2100000, guid: d5ed6b27c2211214db64df759d03c287, type: 2}
+    hair: {fileID: 2100000, guid: 41874dca6de3d8349a96c590058163f8, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: f9a11286e58e42147989cda6f8a7800b, type: 2}
+    parts:
+    - Peca_Fone
+    hideHair: 0
+  - id: gelo
+    displayName: Gelo
+    body: {fileID: 2100000, guid: a50ca3d4b14d2cd4c9e527c6d7d1bd0e, type: 2}
+    hair: {fileID: 2100000, guid: 88d749f75ba6a9845945d2131c9aaf03, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: bf783fc3eafb6d640bad6a384455181d, type: 2}
+    parts:
+    - Peca_Fone
+    hideHair: 0
+  - id: noite
+    displayName: Noite
+    body: {fileID: 2100000, guid: 58d4e9dfa13f9b149bd6ee7aceb85521, type: 2}
+    hair: {fileID: 2100000, guid: b33b2ac24a30fe64583f55841ea2b68f, type: 2}
+    eyes: {fileID: 2100000, guid: d2ead63828405814d813651c1a1f5946, type: 2}
+    accessories: {fileID: 2100000, guid: d6c71b23d431f4a49a9b0dde3d38da84, type: 2}
+    parts:
+    - Peca_Fone
+    hideHair: 0

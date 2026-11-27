@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0c24a80a1c3bf84192ecb7255759e76, type: 3}
   m_Name: IceWallConfig
   m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.IceWallConfig
-  width: 4
-  height: 2.3
+  width: 4.4
+  height: 2.6
   thickness: 0.35
   curveDegrees: 40
   segments: 7
@@ -29,4 +29,4 @@ MonoBehaviour:
   wallMaterial: {fileID: 2100000, guid: 38f3ec176ae7e0a42b5f0cea8e17198b, type: 2}
   previewMaterial: {fileID: 2100000, guid: 10f692b0860b49d42a379524b30d4c22, type: 2}
   invalidPreviewMaterial: {fileID: 2100000, guid: c0d1ea23e009cad4b8a2802fccf3ffc6, type: 2}
-  defaultsVersion: 1
+  defaultsVersion: 2

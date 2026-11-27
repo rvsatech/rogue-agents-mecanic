@@ -4,7 +4,7 @@ namespace Rogue.Gameplay
 {
     /// <summary>
     /// Números da barreira de gelo (estilo gel do Free Fire).
-    /// Ela é ESCALÁVEL (dá para pendurar e passar por cima), mas não serve para correr na parede.
+    /// NÃO dá para escalar, pular por cima nem correr nela (layer IceWall no nonClimbableMask).
     /// A vida é medida em pentes de uma arma de referência (padrão: meio pente do rifle).
     /// </summary>
     [CreateAssetMenu(menuName = "Rogue/Config/Ice Wall", fileName = "IceWallConfig")]
@@ -12,10 +12,10 @@ namespace Rogue.Gameplay
     {
         [Header("Tamanho")]
         [Tooltip("Largura da barreira (comprimento da curva), em metros.")]
-        public float width = 4f;
+        public float width = 4.4f;
 
-        [Tooltip("Altura em metros. Precisa ser menor que o limite de escalada (~3,35 m) para o boneco conseguir subir.")]
-        public float height = 2.3f;
+        [Tooltip("Altura em metros (não dá para escalar nem pular por cima).")]
+        public float height = 2.6f;
 
         [Tooltip("Espessura, em metros.")]
         public float thickness = 0.35f;

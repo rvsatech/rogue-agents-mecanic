@@ -152,6 +152,20 @@ MonoBehaviour:
     pitch: {x: 0.98, y: 1.02}
     spatialBlend: 0
     maxDistance: 10
+  headshotMarker:
+    clips:
+    - {fileID: 8300000, guid: 109e18317508fca45b7a7d350cc1a9c1, type: 3}
+    volume: 0.45
+    pitch: {x: 0.98, y: 1.02}
+    spatialBlend: 0
+    maxDistance: 10
+  killConfirm:
+    clips:
+    - {fileID: 8300000, guid: ddd4d756788122d4090cd808d03ceb2a, type: 3}
+    volume: 0.5
+    pitch: {x: 0.98, y: 1.02}
+    spatialBlend: 0
+    maxDistance: 10
   iceCreate:
     clips:
     - {fileID: 8300000, guid: 092c9adb00b44e445bf3349e92cb22f9, type: 3}

@@ -20,7 +20,9 @@ namespace Rogue.Gameplay
             }
 
             // 1) Shift + Espaço perto de uma parede = wall run (tem prioridade sobre o pulo normal).
+            //    Gastou o tempo de parede (1 s): só volta a valer depois de tocar o chão.
             if (frame.WallRunHeld && state.JumpBufferTimer > 0f && state.WallRunCooldown <= 0f &&
+                state.WallRunAirTime < config.wallRunDuration &&
                 TryFindRunnableWall(frame, flat, wishDir, out RaycastHit wallHit, out Vector3 runDirection))
             {
                 StartWallRun(wallHit, flat, runDirection);
@@ -58,6 +60,9 @@ namespace Rogue.Gameplay
 
             // 5) Agachar: Shift segurado (ou C segurado sem velocidade / depois do slide). Só no chão.
             UpdateCrouch((frame.CrouchHeld || frame.SlideHeld) && state.Grounded, dt);
+
+            // Modo xiu (X segurado): anda devagar e sem barulho de passo.
+            state.QuietWalking = frame.QuietHeld && state.Grounded;
 
             // 6) Velocidade horizontal.
             flat = state.Grounded ? GroundMove(flat, wishDir, dt) : AirMove(frame, flat, dt);
@@ -112,6 +117,9 @@ namespace Rogue.Gameplay
                 targetSpeed = config.crouchSpeed;
             else
                 targetSpeed = config.runSpeed * state.SpeedMultiplier * (1f - FiringGroundPenalty); // atirando correndo: -20%
+
+            if (state.QuietWalking && !state.Crouching && !state.Prone)
+                targetSpeed = config.crouchSpeed; // modo xiu: mesma velocidade do andar agachado
 
             targetSpeed *= WeaponSpeedMultiplier; // faca +15%, pistola +10%
 

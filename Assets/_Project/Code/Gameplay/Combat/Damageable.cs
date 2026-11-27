@@ -37,7 +37,7 @@ namespace Rogue.Gameplay
             Health = maxHealth;
         }
 
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, HitZoneKind zone)
         {
             if (!IsAlive) return;
 

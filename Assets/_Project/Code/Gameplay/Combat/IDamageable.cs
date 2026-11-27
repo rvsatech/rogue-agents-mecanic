@@ -7,7 +7,9 @@ namespace Rogue.Gameplay
     public interface IDamageable
     {
         bool IsAlive { get; }
-        void TakeDamage(float amount);
+
+        /// <summary>Leva dano (já com o multiplicador da parte do corpo aplicado pela arma).</summary>
+        void TakeDamage(float amount, HitZoneKind zone);
 
         /// <summary>Do que é feito (escolhe o som/efeito do acerto).</summary>
         HitSurface Surface { get; }

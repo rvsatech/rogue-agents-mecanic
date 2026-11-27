@@ -1,6 +1,6 @@
 {
   "name": "Rogue.DebugTools",
   "rootNamespace": "Rogue.DebugTools",
-  "references": ["Rogue.Core", "Rogue.Gameplay"],
+  "references": ["Rogue.Core", "Rogue.Gameplay", "Unity.InputSystem"],
   "autoReferenced": true
 }

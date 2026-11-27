@@ -1,5 +1,6 @@
 using Rogue.Gameplay;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Rogue.DebugTools
 {
@@ -10,21 +11,44 @@ namespace Rogue.DebugTools
     /// </summary>
     public sealed class MovementDebugHUD : MonoBehaviour
     {
-        private static readonly string[] SlotKeys = { "1", "2", "3", "4" };
 
         [SerializeField] private PlayerMotor motor;
         [SerializeField] private PlayerWeapons weapons;
+        [SerializeField] private PlayerHealth health;
         [SerializeField] private bool showControls = true;
+
+        [Tooltip("F4: dano de teste no próprio personagem (nunca mata) — para testar o kit médico.")]
+        [SerializeField] private float testDamage = 30f;
+
+        /// <summary>
+        /// Versão da cena montada pelo menu Rogue. Sobe quando a cena ganha peças novas (sons, layers, armas...).
+        /// Se a cena aberta for mais velha, o HUD mostra um aviso vermelho.
+        /// </summary>
+        public const int CurrentSceneVersion = 12;
+
+        [Tooltip("Preenchido pelo menu Rogue ao montar a cena (não mexer).")]
+        [SerializeField] private int builtSceneVersion;
 
         private GUIStyle boxStyle;
         private GUIStyle crosshairStyle;
         private GUIStyle ammoStyle;
+        private GUIStyle warningStyle;
+        private GUIStyle barStyle;
+        private GUIStyle smallRightStyle;
+        private GUIStyle centerStyle;
         private float smoothedFps;
 
         private void Update()
         {
             float fps = 1f / Mathf.Max(Time.unscaledDeltaTime, 0.0001f);
             smoothedFps = Mathf.Lerp(smoothedFps, fps, 0.1f);
+
+            if (health == null && weapons != null) health = weapons.Health;
+
+            // F4: leva dano de teste (deixa pelo menos 1 de vida).
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.f4Key.wasPressedThisFrame && health != null && health.Current > 1f)
+                health.TakeDamage(Mathf.Min(testDamage, health.Current - 1f), HitZoneKind.Body);
         }
 
         private void OnGUI()
@@ -51,6 +75,44 @@ namespace Rogue.DebugTools
                     alignment = TextAnchor.LowerRight,
                     richText = true
                 };
+                warningStyle = new GUIStyle(GUI.skin.box)
+                {
+                    fontSize = 17,
+                    alignment = TextAnchor.MiddleCenter,
+                    richText = true,
+                    wordWrap = true
+                };
+                barStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 15,
+                    alignment = TextAnchor.MiddleCenter,
+                    richText = true
+                };
+                smallRightStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 15,
+                    alignment = TextAnchor.LowerRight,
+                    richText = true
+                };
+                centerStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 18,
+                    alignment = TextAnchor.MiddleCenter,
+                    richText = true
+                };
+            }
+
+            DrawFlashes();
+
+            // Cena montada por uma versão antiga do menu Rogue: avisa (faltam sons, layers, peças...).
+            if (builtSceneVersion < CurrentSceneVersion)
+            {
+                Color before = GUI.color;
+                GUI.color = new Color(1f, 0.35f, 0.3f);
+                GUI.Box(new Rect(Screen.width * 0.5f - 340f, 10f, 680f, 70f),
+                    "<b>CENA DESATUALIZADA</b>: saia do Play e rode o menu <b>Rogue → Criar cena Sandbox_Movement</b>\n" +
+                    "(sem isso faltam o inventário (B), as granadas e a 12)", warningStyle);
+                GUI.color = before;
             }
 
             PlayerSimState s = motor.State;
@@ -62,7 +124,7 @@ namespace Rogue.DebugTools
 
             string modeLine = "";
             if (s.Mode == MotorMode.WallRun)
-                modeLine = $"<b>Parede:</b> {s.WallRunTimer:0.00} / {cfg.wallRunDuration:0.0} s\n";
+                modeLine = $"<b>Parede:</b> {s.WallRunAirTime:0.00} / {cfg.wallRunDuration:0.0} s\n";
             else if (s.Mode == MotorMode.Slide)
                 modeLine = $"<b>Slide:</b> {s.SlideTimer:0.00} / {s.SlideDuration:0.00} s\n";
             else if (s.Mode == MotorMode.Roll)
@@ -76,6 +138,8 @@ namespace Rogue.DebugTools
                            (s.GetUpPhase == 1 ? "(deitado → agachado)" : "(agachado → em pé)") + $" {s.GetUpPhaseTimer:0.0} s\n";
             else if (s.Prone)
                 modeLine = "<b>Deitado (de costas, parado):</b> Ctrl ou Espaço levanta\n";
+            else if (s.QuietWalking)
+                modeLine = "<b>Modo xiu:</b> devagar e sem barulho de passo\n";
             else if (motor.GetUpSpeedFactor < 0.999f)
                 modeLine = $"<b>Recuperando:</b> velocidade {motor.GetUpSpeedFactor * 100f:0}% (normal em {s.GetUpTimer:0.0} s)\n";
 
@@ -91,28 +155,35 @@ namespace Rogue.DebugTools
 
             GUI.Box(new Rect(10, 10, 440, 250), text, boxStyle);
 
-            // Mira no centro da tela. Fica vermelha e vira "x" por um instante quando acerta algo.
+            // Mira no centro da tela. Vira "x" por um instante quando acerta: vermelho no corpo, amarelo na cabeça.
             bool recentHit = weapons != null && Time.time - weapons.LastHitTime < 0.12f;
+            bool recentHead = weapons != null && Time.time - weapons.LastHeadshotTime < 0.15f;
             Color previousColor = GUI.color;
-            GUI.color = recentHit ? Color.red : Color.white;
-            GUI.Label(new Rect(Screen.width * 0.5f - 15, Screen.height * 0.5f - 15, 30, 30), recentHit ? "x" : "+", crosshairStyle);
+            GUI.color = recentHead ? new Color(1f, 0.85f, 0.15f) : recentHit ? Color.red : Color.white;
+            if (weapons == null || !weapons.IsScoped) // na luneta a mira é a da luneta
+                GUI.Label(new Rect(Screen.width * 0.5f - 15, Screen.height * 0.5f - 15, 30, 30), recentHit ? "x" : "+", crosshairStyle);
             GUI.color = previousColor;
 
             DrawAmmo();
+            DrawHealth();
+            DrawItemUse();
 
             if (showControls)
             {
                 const string controls =
                     "<b>Controles</b>\n" +
-                    "WASD mover · Espaço pular · Shift agachar (segurar) · Ctrl deitar/levantar · C slide (segurar) · Alt cambalhota\n" +
+                    "WASD mover · Espaço pular · Shift agachar (segurar) · X modo xiu (segurar) · Ctrl deitar/levantar · C slide (segurar) · Alt cambalhota\n" +
                     "Bhop: pule para frente e pule de novo até 0,5 s depois de tocar o chão\n" +
                     "No ar: qualquer tecla empurra para aquela direção\n" +
-                    "Parede: Shift + Espaço perto da parede (3 s) · Espaço na parede = salto direcional\n" +
+                    "Parede: Shift + Espaço perto da parede (1 s, 20% mais rápido) · Espaço na parede = salto direcional\n" +
                     "Beirada: pule de frente para o bloco · Espaço sobe · Shift/S solta\n" +
-                    "1 rifle · 2 pistola · 3 karambit · 4 gelo · Q troca rápida · R recarregar\n" +
-                    "Botão esquerdo atira/golpeia/coloca o gelo · Botão direito mira (zoom só no rifle/pistola)\n" +
+                    "1 primária · 2 secundária · 3 faca · 4 kit médico · E parede de gelo · G gadget · B inventário · Q troca rápida · R recarregar\n" +
+                    "G: segura o botão (o caminho aparece) e solta para jogar — esquerdo longe, direito perto · AWP: botão direito = luneta\n" +
+                    "F4 leva 30 de dano (teste do kit médico)\n" +
+                    "Botão esquerdo atira/golpeia/coloca o gelo · Botão direito mira (zoom só na UMP/pistola)\n" +
+                    "Campo de treino (bots à direita do início): F3 zera e levanta os bots\n" +
                     "Esc solta o mouse · clique na tela para prender";
-                GUI.Box(new Rect(10, Screen.height - 215, 760, 205), controls, boxStyle);
+                GUI.Box(new Rect(10, Screen.height - 280, 900, 270), controls, boxStyle);
             }
         }
 
@@ -143,6 +214,16 @@ namespace Rogue.DebugTools
                     else if (magazine <= cfg.magazineSize / 4) color = Color.yellow;
                 }
             }
+            else if (cfg.kind == WeaponKind.Throwable)
+            {
+                string count = cfg.infiniteItems ? "∞" : weapons.GetItemCount(weapons.CurrentSlot).ToString();
+                text = $"{cfg.displayName}\n<size=34><b>{count}</b></size>";
+            }
+            else if (cfg.kind == WeaponKind.Consumable)
+            {
+                text = $"{cfg.displayName}\n<size=22>CURANDO {weapons.ItemUseTimeLeft:0.0} s</size>";
+                color = new Color(0.5f, 1f, 0.6f);
+            }
             else
             {
                 text = cfg.displayName;
@@ -154,14 +235,95 @@ namespace Rogue.DebugTools
             GUI.color = previous;
         }
 
+        /// <summary>Barra de vida (acima do contador de balas) e quantos kits médicos tem.</summary>
+        private void DrawHealth()
+        {
+            if (health == null) return;
+
+            const float width = 320f;
+            const float height = 26f;
+            float x = Screen.width - 340f;
+            float y = Screen.height - 156f;
+            float fraction = health.Fraction;
+            Texture2D white = Texture2D.whiteTexture;
+            Color before = GUI.color;
+
+            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.DrawTexture(new Rect(x, y, width, height), white);
+            GUI.color = fraction > 0.6f ? new Color(0.3f, 0.85f, 0.4f)
+                : fraction > 0.3f ? new Color(1f, 0.78f, 0.2f)
+                : new Color(1f, 0.3f, 0.25f);
+            GUI.DrawTexture(new Rect(x + 2f, y + 2f, (width - 4f) * fraction, height - 4f), white);
+            GUI.color = Color.white;
+            GUI.Label(new Rect(x, y, width, height), $"<b>VIDA {Mathf.CeilToInt(health.Current)} / {health.Max:0}</b>", barStyle);
+
+            WeaponBinding kit = weapons != null ? weapons.GetSlot(PlayerWeapons.MedkitSlot) : null;
+            if (kit != null && kit.IsValid)
+            {
+                string count = kit.config.infiniteItems ? "∞" : weapons.GetItemCount(PlayerWeapons.MedkitSlot).ToString();
+                GUI.Label(new Rect(x, y - 26f, width, 24f), $"<b>E</b> kit médico: {count}", smallRightStyle);
+            }
+
+            GUI.color = before;
+        }
+
+        /// <summary>Barra "Curando..." no meio da tela (ou o motivo de não ter usado o kit).</summary>
+        private void DrawItemUse()
+        {
+            if (weapons == null) return;
+
+            Rect bar = new Rect(Screen.width * 0.5f - 150f, Screen.height * 0.62f, 300f, 24f);
+            Texture2D white = Texture2D.whiteTexture;
+            Color before = GUI.color;
+
+            if (weapons.IsUsingItem)
+            {
+                GUI.color = new Color(0f, 0f, 0f, 0.6f);
+                GUI.DrawTexture(bar, white);
+                GUI.color = new Color(0.3f, 0.9f, 0.45f);
+                GUI.DrawTexture(new Rect(bar.x + 2f, bar.y + 2f, (bar.width - 4f) * weapons.ItemUseProgress, bar.height - 4f), white);
+                GUI.color = Color.white;
+                GUI.Label(bar, $"<b>Curando... {weapons.ItemUseTimeLeft:0.0} s</b>", barStyle);
+            }
+            else if (Time.time - weapons.ItemRefusedTime < 1.2f)
+            {
+                GUI.color = new Color(1f, 0.85f, 0.3f);
+                GUI.Label(new Rect(bar.x - 50f, bar.y, bar.width + 100f, bar.height), $"<b>{weapons.ItemRefusedReason}</b>", centerStyle);
+            }
+
+            GUI.color = before;
+        }
+
+        /// <summary>Tela pisca vermelha ao levar dano e verde ao curar.</summary>
+        private void DrawFlashes()
+        {
+            if (health == null) return;
+
+            float sinceDamage = Time.time - health.LastDamageTime;
+            float sinceHeal = Time.time - health.LastHealTime;
+            Color before = GUI.color;
+            if (sinceDamage < 0.35f)
+            {
+                GUI.color = new Color(1f, 0f, 0f, 0.3f * (1f - sinceDamage / 0.35f));
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            }
+            if (sinceHeal < 0.5f)
+            {
+                GUI.color = new Color(0.2f, 1f, 0.4f, 0.2f * (1f - sinceHeal / 0.5f));
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+            }
+            GUI.color = before;
+        }
+
         private string WeaponLine()
         {
             if (weapons == null || weapons.CurrentConfig == null) return "";
 
             WeaponConfig current = weapons.CurrentConfig;
-            string line = $"<b>Arma:</b> [{SlotKeys[weapons.CurrentSlot]}] {current.displayName}";
+            string line = $"<b>Arma:</b> [{weapons.KeyOf(weapons.CurrentSlot)}] {current.displayName}";
             if (weapons.IsEquipping) line += " (sacando...)";
             if (weapons.IsReloading) line += $" (recarregando {weapons.ReloadTimeLeft:0.0} s)";
+            if (weapons.IsUsingItem) line += $" (curando {weapons.ItemUseTimeLeft:0.0} s)";
 
             WeaponBinding previous = weapons.GetSlot(weapons.PreviousSlot);
             if (previous != null && previous.IsValid)

@@ -8,7 +8,10 @@ namespace Rogue.Gameplay
     /// Sem tecla: rola para onde estava indo (ou para frente da câmera, se parado).
     /// O corpo vira para a direção da cambalhota durante ela (o visual cuida disso).
     /// Passa agachado (cabe embaixo de obstáculos baixos). Não atira rolando.
-    /// Depois de rollJumpCancelTime, Espaço cancela a cambalhota em pulo.
+    /// Saídas fluidas (estilo Rogue Agents, sem esperar levantar):
+    ///   rollJumpCancelTime   -> Espaço pula (com Shift, vai para a parede);
+    ///   rollActionCancelTime -> C emenda slide, Alt emenda outra cambalhota;
+    ///   rollMoveCancelTime   -> virar para outro lado, atirar ou mirar já sai correndo.
     /// </summary>
     public sealed partial class PlayerMotor
     {
@@ -38,12 +41,47 @@ namespace Rogue.Gameplay
 
         private void SimulateRoll(in PlayerInputFrame frame, float dt)
         {
-            // Pulo cancela o fim da cambalhota.
+            // Pulo cancela o fim da cambalhota (Shift + Espaço perto de parede = corre na parede).
             if (state.JumpBufferTimer > 0f && state.Grounded && state.RollTimer >= config.rollJumpCancelTime)
             {
                 EndRoll();
                 SimulateLocomotion(frame, dt);
                 return;
+            }
+
+            if (state.Grounded && state.RollTimer >= config.rollActionCancelTime)
+            {
+                // Outra cambalhota emendada (sem espera).
+                if (state.RollBufferTimer > 0f)
+                {
+                    EndRoll(false);
+                    SimulateLocomotion(frame, dt);
+                    return;
+                }
+
+                // C apertado ou segurado: emenda o slide com a velocidade da cambalhota.
+                Vector3 current = Flat(state.Velocity);
+                if ((frame.SlidePressed || frame.SlideHeld) && state.SlideCooldown <= 0f &&
+                    current.magnitude >= config.slideMinSpeed)
+                {
+                    EndRoll();
+                    StartSlide(frame, current, WishDirection(frame));
+                    SimulateSlide(frame, dt);
+                    return;
+                }
+            }
+
+            if (state.Grounded && state.RollTimer >= config.rollMoveCancelTime)
+            {
+                // Virou para outro lado, atirou ou mirou: sai correndo na hora (mantém a velocidade).
+                Vector3 wish = WishDirection(frame);
+                bool turning = wish.sqrMagnitude > 0.01f && Vector3.Dot(wish.normalized, state.RollDirection) < 0.7f;
+                if (turning || frame.FireHeld || frame.AimHeld)
+                {
+                    EndRoll();
+                    SimulateLocomotion(frame, dt);
+                    return;
+                }
             }
 
             state.RollTimer += dt;
@@ -85,10 +123,10 @@ namespace Rogue.Gameplay
                 EndRoll();
         }
 
-        private void EndRoll()
+        private void EndRoll(bool cooldown = true)
         {
             state.Mode = MotorMode.Locomotion;
-            state.RollCooldown = config.rollCooldown;
+            state.RollCooldown = cooldown ? config.rollCooldown : 0f;
             // Continua agachado; no próximo tick levanta sozinho se houver espaço e não estiver segurando Shift.
         }
     }

@@ -10,7 +10,7 @@ namespace Rogue.Gameplay
     /// - Com o gelo na mão, mostra uma PRÉVIA TRANSPARENTE onde a barreira vai aparecer
     ///   (azul = pode colocar, vermelha = não pode).
     /// - Alcance: rangeInSlides x distância do slide (padrão 2 slides).
-    /// - Altura 2,3 m (dá para escalar). Vida = meio pente do rifle. Largura e curva no IceWallConfig.
+    /// - 2,6 m de altura por 4,4 m (não dá para escalar nem pular). Vida = meio pente do rifle.
     /// - A barreira é levemente curvada para dentro (lado côncavo virado para quem colocou),
     ///   protegendo também de tiros pelos lados.
     /// - Barreiras ficam num pool (reaproveitadas), no máximo maxActiveWalls ao mesmo tempo.
@@ -62,13 +62,13 @@ namespace Rogue.Gameplay
             : 10f;
 
         /// <summary>Altura da barreira (do IceWallConfig).</summary>
-        public float WallHeight => config != null ? Mathf.Max(0.5f, config.height) : 2.3f;
+        public float WallHeight => config != null ? Mathf.Max(0.5f, config.height) : 2.6f;
 
         private void Awake()
         {
             if (aimCamera == null) aimCamera = Camera.main;
 
-            // Layer própria: dá para escalar, mas não para correr na parede.
+            // Layer própria (IceWall): fica no nonClimbableMask — não escala, não pula, não corre na parede.
             wallLayer = LayerMask.NameToLayer("IceWall");
             if (wallLayer < 0) wallLayer = LayerMask.NameToLayer("NonClimbable");
             if (wallLayer < 0) wallLayer = 0;

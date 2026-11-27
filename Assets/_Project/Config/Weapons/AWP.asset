@@ -1,0 +1,181 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05490afbcf71fc044a242ae939fc0127, type: 3}
+  m_Name: AWP
+  m_EditorClassIdentifier: Rogue.Gameplay::Rogue.Gameplay.WeaponConfig
+  displayName: AWP
+  slot: 4
+  kind: 0
+  moveSpeedMultiplier: 0.85
+  firingGroundSpeedPenalty: 0.2
+  equipTime: 0.5
+  automatic: 0
+  fireRate: 0.7
+  damage: 100
+  headshotMultiplier: 2
+  chestMultiplier: 1.6
+  stomachMultiplier: 0.8
+  armMultiplier: 0.8
+  legMultiplier: 0.8
+  scopeFieldOfView: 16
+  scopedSpreadDegrees: 0
+  movingSpreadDegrees: 5
+  scopedMoveSpeedMultiplier: 0.55
+  unscopeAfterShotTime: 0.95
+  recoilVertical: 4.5
+  recoilHorizontal: 0.6
+  recoilMaxVertical: 4.5
+  recoilKickTime: 0.06
+  recoilRecoveryDelay: 0.3
+  recoilRecoverySpeed: 10
+  recoilCrouchFactor: 0.8
+  recoilProneFactor: 0.6
+  recoilAirFactor: 1.3
+  recoilAimFactor: 0.6
+  recoilVisualTilt: 16
+  magazineSize: 5
+  reserveAmmo: 20
+  infiniteMagazine: 1
+  infiniteReserve: 1
+  reloadTime: 3.2
+  autoReloadWhenEmpty: 1
+  range: 300
+  spreadDegrees: 6
+  airSpreadDegrees: 12
+  proneSpreadFactor: 0.5
+  hitMask:
+    serializedVersion: 2
+    m_Bits: 4294966783
+  meleeRange: 1.9
+  meleeRadius: 0.45
+  meleeAttackDuration: 0.32
+  meleeHitTime: 0.1
+  aimHoldOffset: {x: 0.07, y: -0.07, z: 0.25}
+  twoHanded: 1
+  recoilDistance: 0.12
+  tracerDuration: 0.05
+  tracerWidth: 0.05
+  muzzleFlashDuration: 0.04
+  muzzleFlashScale: 1.5
+  shellLength: 0.06
+  shellColor: {r: 0.86, g: 0.66, b: 0.3, a: 1}
+  action: 3
+  actionDelay: 0.4
+  actionDuration: 0.5
+  actionTravel: 0.09
+  reloadShellInserts: 0
+  pellets: 1
+  falloffStart: 0
+  falloffEnd: 0
+  falloffMinFactor: 1
+  throwableType: 0
+  throwSpeed: 16
+  shortThrowSpeed: 7
+  throwUpAngle: 8
+  fuseTime: 2.5
+  throwRecoveryTime: 0.3
+  effectRadius: 2.2
+  maxDamage: 100
+  minDamage: 30
+  flashMaxDistance: 25
+  flashFullBlindDistance: 12
+  flashMaxBlindTime: 2.5
+  flashFadeTime: 1.5
+  smokeHeight: 2.6
+  smokeDuration: 15
+  particleMaterial: {fileID: 0}
+  glowMaterial: {fileID: 0}
+  useTime: 0
+  healPercent: 0
+  itemCount: 0
+  infiniteItems: 1
+  fireSound:
+    clips:
+    - {fileID: 8300000, guid: 434e6bb57d29f404b8be8992ee5a339f, type: 3}
+    - {fileID: 8300000, guid: 2d37a44451246d44da51161ea6d8ce0f, type: 3}
+    volume: 0.9
+    pitch: {x: 0.97, y: 1.03}
+    spatialBlend: 1
+    maxDistance: 200
+  equipSound:
+    clips:
+    - {fileID: 8300000, guid: b40544ffac2efd74cb008755fd5bca35, type: 3}
+    - {fileID: 8300000, guid: 2a84447116724d1449e5d5a75b58dc3b, type: 3}
+    volume: 0.5
+    pitch: {x: 0.86, y: 0.92}
+    spatialBlend: 1
+    maxDistance: 20
+  dryFireSound:
+    clips:
+    - {fileID: 8300000, guid: 6a9348c14b7d1154c930b076f0555170, type: 3}
+    volume: 0.5
+    pitch: {x: 0.9, y: 0.98}
+    spatialBlend: 1
+    maxDistance: 15
+  reloadOutSound:
+    clips:
+    - {fileID: 8300000, guid: ef206720b7fad4f4ab13580e9f9d5e8f, type: 3}
+    volume: 0.6
+    pitch: {x: 0.84, y: 0.9}
+    spatialBlend: 1
+    maxDistance: 20
+  reloadInSound:
+    clips:
+    - {fileID: 8300000, guid: bbb3a5521344fa94b8c49bf3f971ba39, type: 3}
+    volume: 0.6
+    pitch: {x: 0.84, y: 0.9}
+    spatialBlend: 1
+    maxDistance: 20
+  reloadRackSound:
+    clips:
+    - {fileID: 8300000, guid: 5e56123ee18914c4ea43fb752dd5c4ab, type: 3}
+    volume: 0.65
+    pitch: {x: 0.82, y: 0.88}
+    spatialBlend: 1
+    maxDistance: 20
+  swingSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  meleeHitSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  useCompleteSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  bounceSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  detonateSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  ringSound:
+    clips: []
+    volume: 0.7
+    pitch: {x: 0.95, y: 1.05}
+    spatialBlend: 1
+    maxDistance: 35
+  defaultsVersion: 9

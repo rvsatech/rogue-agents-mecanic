@@ -80,15 +80,16 @@ def slide_loop(rng):
 
 
 def roll(rng):
-    buf = np.zeros(secs(0.9))
+    """Cambalhota de 0,8 s: ombro no chão, costas rolando, pé no chão no fim."""
+    buf = np.zeros(secs(1.15))
     place(buf, thump(rng, 0.2, 95, 50, 0.05), 0.0, 0.6)
     place(buf, noise_burst(rng, 0.15, 0.04, hi=350), 0.0, 0.5)
-    t1 = rng.uniform(0.17, 0.22)
+    t1 = rng.uniform(0.24, 0.3)
     place(buf, thump(rng, 0.2, 80, 45, 0.06), t1, 0.4)
     place(buf, noise_burst(rng, 0.15, 0.05, hi=300), t1, 0.35)
-    place(buf, rustle(rng, 0.55, 500, 4000, 30), 0.0, 0.45)
-    place(buf, rattle(rng, 0.4, 6), 0.05, 0.12)
-    place(buf, footstep(rng, 0.8), rng.uniform(0.42, 0.5), 0.55)
+    place(buf, rustle(rng, 0.74, 500, 4000, 30), 0.0, 0.45)
+    place(buf, rattle(rng, 0.55, 6), 0.05, 0.12)
+    place(buf, footstep(rng, 0.8), rng.uniform(0.58, 0.66), 0.55)
     return reverb(buf, rng, 0.4, 0.08)
 
 
@@ -195,6 +196,30 @@ def gunshot(rng, pistol=False):
     out = reverb(buf, rng, rt, wet, 2500, 0.02)
     echo = lp(out, 2000) * 0.18
     place(out, echo.copy(), rng.uniform(0.06, 0.09))
+    return out
+
+
+def awp_shot(rng):
+    """AWP: estouro grave e longo (eco de área aberta) + ferrolho puxado/empurrado ~0,55 s depois."""
+    dur = 2.4
+    buf = np.zeros(secs(dur))
+    place(buf, noise_burst(rng, 0.02, 0.003, attack=0.0002), 0, 1.0)
+    place(buf, noise_burst(rng, 0.12, 0.016, lo=1500, hi=12000, attack=0.0003), 0, 0.9)
+    place(buf, noise_burst(rng, 0.4, 0.075, lo=80, hi=2500, attack=0.0008), 0, 1.0)
+    place(buf, thump(rng, 0.6, rng.uniform(120, 135), 38, 0.12, attack=0.0005), 0, 1.3)
+    shot = np.tanh(2.4 * norm01(buf))
+    out = reverb(shot, rng, 1.8, 0.45, 2200, 0.025)
+    echo = lp(out, 1500) * 0.22
+    place(out, echo.copy(), rng.uniform(0.11, 0.15))
+    # ferrolho: puxa (clique + raspada) e empurra (batida)
+    bolt = np.zeros(secs(0.5))
+    place(bolt, scrape(rng, 0.09, 1200, 6000) * bell(secs(0.09), 0.4), 0.0, 0.35)
+    place(bolt, metal_click(rng, 1700, 0.02), 0.05, 0.8)
+    place(bolt, scrape(rng, 0.08, 1200, 6000) * bell(secs(0.08), 0.4), 0.16, 0.3)
+    place(bolt, metal_click(rng, 1400, 0.03), 0.24, 1.0)
+    place(bolt, thump(rng, 0.08, 320, 190, 0.012), 0.24, 0.4)
+    bolt = reverb(bolt, rng, 0.3, 0.08, 6000)
+    place(out, norm01(bolt) * 0.18 * np.max(np.abs(out)), 0.55)
     return out
 
 
@@ -318,6 +343,159 @@ def hitmarker(rng):
     return y
 
 
+def headshot_marker(rng):
+    """'Tink' agudo e brilhante: acertou a cabeça."""
+    n = secs(0.16)
+    t = tt(n)
+    y = (np.sin(2 * np.pi * 2600 * t) + 0.6 * np.sin(2 * np.pi * 5200 * t) + 0.35 * np.sin(2 * np.pi * 7900 * t)) * np.exp(-t / 0.035)
+    y += 0.4 * np.sin(2 * np.pi * 3900 * t) * np.exp(-t / 0.07)
+    a = secs(0.001)
+    y[:a] *= np.linspace(0, 1, a)
+    y += noise_burst(rng, 0.16, 0.002, lo=4000) * 0.35
+    return y
+
+
+def kill_confirm(rng):
+    """Confirmação de abate: baque curto + dois toques subindo."""
+    buf = np.zeros(secs(0.5))
+    place(buf, thump(rng, 0.12, 180, 90, 0.03), 0.0, 0.6)
+    for t0, f in [(0.0, 1320.0), (0.085, 1980.0)]:
+        n = secs(0.3)
+        t = tt(n)
+        tone = (np.sin(2 * np.pi * f * t) + 0.3 * np.sin(2 * np.pi * 2 * f * t)) * np.exp(-t / 0.09)
+        a = secs(0.002)
+        tone[:a] *= np.linspace(0, 1, a)
+        place(buf, tone, t0, 0.8)
+    return reverb(buf, rng, 0.3, 0.08, 8000)
+
+
+# ======================= A 12 E GRANADAS =======================
+def shotgun_shot(rng):
+    """A 12: estouro grave e largo (muitos chumbos) + a bomba puxada e empurrada ~0,45 s depois."""
+    buf = np.zeros(secs(1.9))
+    place(buf, noise_burst(rng, 0.025, 0.004, attack=0.0002), 0, 1.0)
+    place(buf, noise_burst(rng, 0.12, 0.02, lo=900, hi=9000, attack=0.0003), 0, 0.9)
+    place(buf, noise_burst(rng, 0.35, 0.07, lo=70, hi=2200, attack=0.0008), 0, 1.0)
+    place(buf, thump(rng, 0.5, rng.uniform(105, 120), 40, 0.1, attack=0.0005), 0, 1.4)
+    shot = np.tanh(2.6 * norm01(buf))
+    out = reverb(shot, rng, 1.3, 0.4, 2200, 0.02)
+    place(out, lp(out, 1600) * 0.2, rng.uniform(0.08, 0.11))
+    pump = np.zeros(secs(0.4))
+    place(pump, scrape(rng, 0.08, 600, 3500) * bell(secs(0.08), 0.4), 0.0, 0.5)
+    place(pump, metal_click(rng, 1100, 0.025), 0.07, 0.9)
+    place(pump, scrape(rng, 0.07, 700, 4000) * bell(secs(0.07), 0.4), 0.16, 0.45)
+    place(pump, metal_click(rng, 950, 0.03), 0.23, 1.0)
+    place(pump, thump(rng, 0.08, 260, 160, 0.012), 0.23, 0.5)
+    pump = reverb(pump, rng, 0.3, 0.08, 5000)
+    place(out, norm01(pump) * 0.2 * np.max(np.abs(out)), rng.uniform(0.42, 0.48))
+    return out
+
+
+def grenade_pin(rng):
+    """Granada: pino saindo (raspada metálica + anel tilintando) e a alavanca estalando."""
+    buf = np.zeros(secs(0.6))
+    place(buf, scrape(rng, 0.09, 2500, 9000) * bell(secs(0.09), 0.5), 0.0, 0.35)
+    place(buf, modal(rng, 0.35, [3100, 4700, 6900], [0.08, 0.06, 0.04], [0.3, 0.2, 0.12]), 0.08, 0.35)
+    place(buf, metal_click(rng, 2600, 0.012), 0.09, 0.5)
+    place(buf, metal_click(rng, 1800, 0.02), 0.22, 0.7)
+    return reverb(buf, rng, 0.3, 0.08, 7000)
+
+
+def grenade_bounce(rng):
+    """Granada quicando no chão: batida metálica curta e oca."""
+    buf = np.zeros(secs(0.45))
+    place(buf, thump(rng, 0.07, rng.uniform(380, 460), 220, 0.012), 0.0, 0.6)
+    place(buf, modal(rng, 0.3, [rng.uniform(1300, 1600), rng.uniform(2700, 3300), rng.uniform(4800, 5600)],
+                     [0.05, 0.035, 0.025], [0.5, 0.3, 0.15]), 0.0, 0.5)
+    place(buf, noise_burst(rng, 0.03, 0.004, lo=1500, hi=8000), 0.0, 0.35)
+    return reverb(buf, rng, 0.35, 0.12, 6000)
+
+
+def grenade_explosion(rng):
+    """Granada: explosão grave e longa, com estilhaços caindo depois."""
+    buf = np.zeros(secs(3.2))
+    place(buf, noise_burst(rng, 0.03, 0.006, attack=0.0003), 0, 1.0)
+    place(buf, noise_burst(rng, 0.6, 0.12, lo=40, hi=1800, attack=0.001, pink=True), 0, 1.0)
+    place(buf, thump(rng, 1.1, rng.uniform(70, 85), 28, 0.25, attack=0.0008), 0, 1.6)
+    place(buf, noise_burst(rng, 0.2, 0.03, lo=800, hi=6000, attack=0.0005), 0, 0.5)
+    boom = np.tanh(2.2 * norm01(buf))
+    out = reverb(boom, rng, 2.2, 0.5, 1500, 0.03)
+    for _ in range(int(rng.integers(8, 14))):
+        place(out, noise_burst(rng, 0.03, rng.uniform(0.004, 0.01), lo=1500, hi=7000) * rng.uniform(0.04, 0.12),
+              rng.uniform(0.35, 1.6))
+    return out
+
+
+def flash_bang(rng):
+    """Flash: estalo seco e muito alto (agudo) com um anel metálico curto."""
+    buf = np.zeros(secs(1.6))
+    place(buf, noise_burst(rng, 0.015, 0.002, attack=0.0001), 0, 1.0)
+    place(buf, noise_burst(rng, 0.08, 0.012, lo=2000, hi=14000, attack=0.0002), 0, 0.9)
+    place(buf, thump(rng, 0.25, rng.uniform(160, 190), 60, 0.04, attack=0.0004), 0, 0.9)
+    place(buf, modal(rng, 0.6, [2900, 4300, 6100], [0.12, 0.09, 0.06], [0.15, 0.1, 0.06]), 0.005, 0.5)
+    bang = np.tanh(3.0 * norm01(buf))
+    return reverb(bang, rng, 1.2, 0.4, 5000, 0.015)
+
+
+def flash_ring(rng):
+    """Zumbido no ouvido depois da flash (agudo, some devagar)."""
+    dur = 3.2
+    n = secs(dur)
+    t = tt(n)
+    f = 3300.0
+    tone = np.sin(2 * np.pi * f * t) + 0.35 * np.sin(2 * np.pi * (f * 1.004) * t) + 0.1 * np.sin(2 * np.pi * 2 * f * t)
+    env = np.exp(-t / 1.1)
+    env[:secs(0.05)] *= np.linspace(0, 1, secs(0.05))
+    return tone * env * 0.5
+
+
+def smoke_pop(rng):
+    """Smoke: estalo pequeno e o chiado da fumaça saindo (uns 3 s, diminuindo)."""
+    buf = np.zeros(secs(3.6))
+    place(buf, noise_burst(rng, 0.03, 0.005, lo=300, hi=5000), 0, 0.7)
+    place(buf, thump(rng, 0.12, 200, 110, 0.02), 0, 0.5)
+    n = secs(3.4)
+    t = tt(n)
+    hiss = bp(pinkify(rng.standard_normal(n)), 1500, 9000) * np.exp(-t / 1.4)
+    hiss[:secs(0.1)] *= np.linspace(0, 1, secs(0.1))
+    place(buf, hiss * 0.35, 0.05)
+    return reverb(buf, rng, 0.5, 0.15, 6000)
+
+
+# ======================= KIT MÉDICO =======================
+def medkit_open(rng):
+    """Kit médico: zíper abrindo (dentes passando, acelerando) + embalagem de plástico."""
+    buf = np.zeros(secs(0.95))
+    t0 = 0.02
+    teeth = int(rng.integers(26, 34))
+    zip_dur = rng.uniform(0.34, 0.42)
+    for i in range(teeth):
+        u = i / teeth
+        place(buf, noise_burst(rng, 0.006, 0.0012, lo=2500, hi=9000), t0 + zip_dur * (u ** 0.85),
+              rng.uniform(0.35, 0.6))
+    n = secs(zip_dur)
+    place(buf, bp(rng.standard_normal(n), 1800, 6000) * bell(n, 0.5) * 0.12, t0)
+    place(buf, rustle(rng, 0.35, 1500, 7000, 40), t0 + zip_dur * 0.8, 0.35)
+    place(buf, noise_burst(rng, 0.05, 0.01, lo=1200, hi=5000), t0 + zip_dur + 0.05, 0.3)
+    return reverb(buf, rng, 0.3, 0.08, 7000)
+
+
+def medkit_heal(rng):
+    """Curou: duas notas suaves subindo + um respiro aliviado."""
+    buf = np.zeros(secs(1.4))
+    for t0, f in [(0.0, 784.0), (0.11, 1175.0)]:
+        n = secs(1.1)
+        t = tt(n)
+        tone = (np.sin(2 * np.pi * f * t) + 0.25 * np.sin(2 * np.pi * 2 * f * t)
+                + 0.1 * np.sin(2 * np.pi * 3 * f * t)) * np.exp(-t / 0.22)
+        a = secs(0.008)
+        tone[:a] *= np.linspace(0, 1, a)
+        place(buf, tone, t0, 0.5)
+    n = secs(0.45)
+    place(buf, bp(pinkify(rng.standard_normal(n)), 400, 2200) * bell(n, 0.35), 0.18, 0.25)
+    return reverb(buf, rng, 0.5, 0.15, 6000)
+
+
 # ======================= GELO =======================
 def ice_create(rng):
     buf = np.zeros(secs(1.0))
@@ -381,6 +559,16 @@ variants('voz_esforco', voice_effort, 3, 12)
 variants('voz_curta', voice_short, 4, 13)
 variants('rifle_tiro', lambda r: gunshot(r, False), 3, 14)
 variants('pistola_tiro', lambda r: gunshot(r, True), 3, 15)
+variants('awp_tiro', awp_shot, 2, 33)
+variants('kit_abrir', medkit_open, 2, 34)
+variants('kit_cura', medkit_heal, 1, 35)
+variants('doze_tiro', shotgun_shot, 2, 36)
+variants('granada_pino', grenade_pin, 1, 37)
+variants('granada_quica', grenade_bounce, 3, 38)
+variants('granada_explosao', grenade_explosion, 2, 39)
+variants('flash_estouro', flash_bang, 2, 40)
+variants('flash_zumbido', flash_ring, 1, 41, loud_db=-20.0)
+variants('smoke_estouro', smoke_pop, 1, 42)
 variants('sem_bala', dry_fire, 1, 16)
 variants('recarga_tira', mag_out, 1, 17)
 variants('recarga_poe', mag_in, 1, 18)
@@ -393,6 +581,8 @@ variants('sacar_gelo', equip_gadget, 1, 24)
 variants('impacto', impact_surface, 4, 25)
 variants('acerto_alvo', hit_target, 2, 26)
 variants('hitmarker', hitmarker, 1, 27, loud_db=-18.0)
+variants('hitmarker_cabeca', headshot_marker, 1, 31, loud_db=-17.0)
+variants('abate', kill_confirm, 1, 32, loud_db=-16.0)
 variants('gelo_criar', ice_create, 2, 28)
 variants('gelo_impacto', ice_impact, 3, 29)
 variants('gelo_quebrar', ice_break, 2, 30)

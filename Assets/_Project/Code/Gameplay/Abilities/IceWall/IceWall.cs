@@ -4,7 +4,7 @@ using UnityEngine;
 namespace Rogue.Gameplay
 {
     /// <summary>
-    /// Uma barreira de gelo já colocada: bloqueia tiros, pode ser escalada (layer IceWall, sem wall run),
+    /// Uma barreira de gelo já colocada: bloqueia tiros, NÃO pode ser escalada nem pulada (layer IceWall),
     /// tem vida (quebra com meio pente de rifle) e quebra sozinha depois de 1 minuto
     /// (pisca nos últimos segundos, avisando).
     /// Fica num pool: quando quebra/some, é desativada e reaproveitada na próxima colocação.
@@ -58,7 +58,7 @@ namespace Rogue.Gameplay
             UpdateVisual();
         }
 
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, HitZoneKind zone)
         {
             if (!alive) return;
             health -= amount;
